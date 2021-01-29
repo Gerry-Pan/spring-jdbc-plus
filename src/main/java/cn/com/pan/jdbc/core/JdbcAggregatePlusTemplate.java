@@ -1,6 +1,7 @@
 package cn.com.pan.jdbc.core;
 
 import java.beans.FeatureDescriptor;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -18,14 +19,21 @@ import org.springframework.data.projection.ProjectionInformation;
 import org.springframework.data.projection.SpelAwareProxyProjectionFactory;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
 import org.springframework.data.relational.core.mapping.RelationalPersistentEntity;
+import org.springframework.data.relational.core.mapping.RelationalPersistentProperty;
 import org.springframework.data.relational.core.query.CriteriaDefinition;
 import org.springframework.data.relational.core.query.Query;
 import org.springframework.data.relational.core.sql.Expression;
 import org.springframework.data.relational.core.sql.SqlIdentifier;
 import org.springframework.data.relational.core.sql.Table;
+import org.springframework.util.CollectionUtils;
 
 import cn.com.pan.jdbc.core.convert.DataAccessStrategySupport;
 
+/**
+ * 
+ * @author Jerry Pan, NJUST
+ *
+ */
 public class JdbcAggregatePlusTemplate extends JdbcAggregateTemplate
 		implements JdbcAggregateOperations, BeanFactoryAware {
 
@@ -59,11 +67,29 @@ public class JdbcAggregatePlusTemplate extends JdbcAggregateTemplate
 	}
 
 	<T> Iterable<T> doFind(Query query, Class<?> entityClass, SqlIdentifier tableName, Class<T> returnType) {
+		if (CollectionUtils.isEmpty(query.getColumns())) {
+			RelationalPersistentEntity<?> relationalPersistentEntity = getRequiredEntity(entityClass);
+
+			List<String> columns = new ArrayList<String>();
+			Iterator<RelationalPersistentProperty> iterator = relationalPersistentEntity.iterator();
+
+			while (iterator.hasNext()) {
+				RelationalPersistentProperty persistentProperty = iterator.next();
+				String property = persistentProperty.getName();
+
+				columns.add(property);
+			}
+
+			query = query.columns(columns);
+		}
+
+		Query q = query;
+
 		StatementMapper statementMapper = accessStrategy.getStatementMapper().forType(entityClass);
 
 		StatementMapper.SelectSpec selectSpec = statementMapper //
 				.createSelect(tableName) //
-				.doWithTable((table, spec) -> spec.withProjection(getSelectProjection(table, query, returnType)));
+				.doWithTable((table, spec) -> spec.withProjection(getSelectProjection(table, q, returnType)));
 
 		if (query.getLimit() > 0) {
 			selectSpec = selectSpec.limit(query.getLimit());

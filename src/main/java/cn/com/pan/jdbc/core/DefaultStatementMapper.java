@@ -50,7 +50,7 @@ import cn.com.pan.jdbc.query.UpdateMapper;
 
 /**
  * 
- * @author 潘国博 NJUST
+ * @author Jerry Pan, NJUST
  *
  */
 public class DefaultStatementMapper implements StatementMapper {
@@ -245,7 +245,7 @@ public class DefaultStatementMapper implements StatementMapper {
 						String col = manyToOne.column();
 						String idProperty = rightEntity.getIdProperty().getName();
 
-						selectBuilder.join(right).on(Column.create(col, left))
+						selectBuilder.join(right).on(Column.create(SqlIdentifier.quoted(col), left))
 								.equals(Column.create(SqlIdentifier.quoted(idProperty), right)).build();
 					}
 
@@ -264,7 +264,7 @@ public class DefaultStatementMapper implements StatementMapper {
 							col = mto.column();
 						}
 
-						selectBuilder.join(right).on(Column.create(idProperty, left))
+						selectBuilder.join(right).on(Column.create(SqlIdentifier.quoted(idProperty), left))
 								.equals(Column.create(SqlIdentifier.quoted(col), right)).build();
 					}
 
@@ -291,10 +291,10 @@ public class DefaultStatementMapper implements StatementMapper {
 							String leftIdProperty = leftEntity.getIdProperty().getName();
 							String rightIdProperty = rightEntity.getIdProperty().getName();
 
-							selectBuilder.join(middle).on(Column.create(leftIdProperty, left))
+							selectBuilder.join(middle).on(Column.create(SqlIdentifier.quoted(leftIdProperty), left))
 									.equals(Column.create(SqlIdentifier.quoted(localColumn), middle)).build();
 
-							selectBuilder.join(right).on(Column.create(inverseColumn, middle))
+							selectBuilder.join(right).on(Column.create(SqlIdentifier.quoted(inverseColumn), middle))
 									.equals(Column.create(SqlIdentifier.quoted(rightIdProperty), right)).build();
 
 							f = true;
@@ -313,10 +313,10 @@ public class DefaultStatementMapper implements StatementMapper {
 							String leftIdProperty = leftEntity.getIdProperty().getName();
 							String rightIdProperty = rightEntity.getIdProperty().getName();
 
-							selectBuilder.join(middle).on(Column.create(leftIdProperty, left))
+							selectBuilder.join(middle).on(Column.create(SqlIdentifier.quoted(leftIdProperty), left))
 									.equals(Column.create(SqlIdentifier.quoted(inverseColumn), middle)).build();
 
-							selectBuilder.join(right).on(Column.create(localColumn, middle))
+							selectBuilder.join(right).on(Column.create(SqlIdentifier.quoted(localColumn), middle))
 									.equals(Column.create(SqlIdentifier.quoted(rightIdProperty), right)).build();
 
 							f = true;
