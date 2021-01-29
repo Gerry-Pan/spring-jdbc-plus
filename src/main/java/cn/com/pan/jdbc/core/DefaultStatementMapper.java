@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.data.relational.core.dialect.Dialect;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
@@ -94,6 +95,7 @@ public class DefaultStatementMapper implements StatementMapper {
 			@Nullable RelationalPersistentEntity<?> entity) {
 
 		Table table = selectSpec.getTable();
+		AtomicInteger atomicInteger = new AtomicInteger();
 		MapSqlParameterSource sqlParameterSource = new MapSqlParameterSource();
 		SelectBuilder.SelectAndFrom selectAndFrom = StatementBuilder.select(getSelectList(selectSpec, entity));
 
@@ -124,7 +126,7 @@ public class DefaultStatementMapper implements StatementMapper {
 			Pair<Map<String, Table>, Map<String, Class<?>>> pair = Pair.of(tableMap, clazzMap);
 
 			BoundCondition mappedObject = this.updateMapper.getMappedObject(criteria, table, entity, sqlParameterSource,
-					pair);
+					atomicInteger, pair);
 
 			selectBuilder.where(mappedObject.getCondition());
 		}

@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.data.jdbc.core.convert.JdbcConverter;
 import org.springframework.data.mapping.context.MappingContext;
@@ -53,7 +54,8 @@ public class UpdateMapper extends QueryMapper {
 	}
 
 	public BoundCondition getMappedObject(CriteriaDefinition criteria, Table table,
-			@Nullable RelationalPersistentEntity<?> entity, MapSqlParameterSource sqlParameterSource) {
+			@Nullable RelationalPersistentEntity<?> entity, MapSqlParameterSource sqlParameterSource,
+			AtomicInteger atomicInteger) {
 
 		Assert.notNull(criteria, "CriteriaDefinition must not be null!");
 		Assert.notNull(table, "Table must not be null!");
@@ -62,14 +64,14 @@ public class UpdateMapper extends QueryMapper {
 			throw new IllegalArgumentException("Cannot map empty Criteria");
 		}
 
-		Condition mapped = unroll(criteria, table, entity, sqlParameterSource);
+		Condition mapped = unroll(criteria, table, entity, sqlParameterSource, atomicInteger);
 
 		return new BoundCondition(sqlParameterSource, mapped);
 	}
 
 	public BoundCondition getMappedObject(CriteriaDefinition criteria, Table table,
 			@Nullable RelationalPersistentEntity<?> entity, MapSqlParameterSource sqlParameterSource,
-			Pair<Map<String, Table>, Map<String, Class<?>>> pair) {
+			AtomicInteger atomicInteger, Pair<Map<String, Table>, Map<String, Class<?>>> pair) {
 
 		Assert.notNull(criteria, "CriteriaDefinition must not be null!");
 		Assert.notNull(table, "Table must not be null!");
@@ -78,13 +80,14 @@ public class UpdateMapper extends QueryMapper {
 			throw new IllegalArgumentException("Cannot map empty Criteria");
 		}
 
-		Condition mapped = unroll(criteria, table, entity, sqlParameterSource, pair);
+		Condition mapped = unroll(criteria, table, entity, sqlParameterSource, atomicInteger, pair);
 
 		return new BoundCondition(sqlParameterSource, mapped);
 	}
 
 	private Condition resolve(CriteriaDefinition criterion, Table table, @Nullable RelationalPersistentEntity<?> entity,
-			MapSqlParameterSource sqlParameterSource, Pair<Map<String, Table>, Map<String, Class<?>>> pair) {
+			MapSqlParameterSource sqlParameterSource, AtomicInteger atomicInteger,
+			Pair<Map<String, Table>, Map<String, Class<?>>> pair) {
 		Condition condition = null;
 		SqlIdentifier columnIdentifier = criterion.getColumn();
 		Map<String, Table> tableMap = pair.getFirst();
@@ -122,19 +125,20 @@ public class UpdateMapper extends QueryMapper {
 					}
 				}
 
-				condition = getCondition(c, right, rightEntity, sqlParameterSource, pair);
+				condition = getCondition(c, right, rightEntity, sqlParameterSource, atomicInteger, pair);
 			} else {
-				condition = getCondition(criterion, table, entity, sqlParameterSource, pair);
+				condition = getCondition(criterion, table, entity, sqlParameterSource, atomicInteger, pair);
 			}
 		} else {
-			condition = getCondition(criterion, table, entity, sqlParameterSource, pair);
+			condition = getCondition(criterion, table, entity, sqlParameterSource, atomicInteger, pair);
 		}
 
 		return condition;
 	}
 
 	private Condition unroll(CriteriaDefinition criteria, Table table, @Nullable RelationalPersistentEntity<?> entity,
-			MapSqlParameterSource sqlParameterSource, Pair<Map<String, Table>, Map<String, Class<?>>> pair) {
+			MapSqlParameterSource sqlParameterSource, AtomicInteger atomicInteger,
+			Pair<Map<String, Table>, Map<String, Class<?>>> pair) {
 
 		CriteriaDefinition current = criteria;
 
@@ -147,14 +151,14 @@ public class UpdateMapper extends QueryMapper {
 		}
 
 		// perform the actual mapping
-		Condition mapped = resolve(current, table, entity, sqlParameterSource, pair);
+		Condition mapped = resolve(current, table, entity, sqlParameterSource, atomicInteger, pair);
 
 		while (forwardChain.containsKey(current)) {
 
 			CriteriaDefinition criterion = forwardChain.get(current);
 
 			Condition result = null;
-			Condition condition = resolve(criterion, table, entity, sqlParameterSource, pair);
+			Condition condition = resolve(criterion, table, entity, sqlParameterSource, atomicInteger, pair);
 
 			if (condition != null) {
 				result = combine(criterion, mapped, criterion.getCombinator(), condition);
@@ -175,7 +179,7 @@ public class UpdateMapper extends QueryMapper {
 	}
 
 	private Condition unroll(CriteriaDefinition criteria, Table table, @Nullable RelationalPersistentEntity<?> entity,
-			MapSqlParameterSource sqlParameterSource) {
+			MapSqlParameterSource sqlParameterSource, AtomicInteger atomicInteger) {
 
 		CriteriaDefinition current = criteria;
 
@@ -188,13 +192,13 @@ public class UpdateMapper extends QueryMapper {
 		}
 
 		// perform the actual mapping
-		Condition mapped = getCondition(current, table, entity, sqlParameterSource);
+		Condition mapped = getCondition(current, table, entity, sqlParameterSource, atomicInteger);
 		while (forwardChain.containsKey(current)) {
 
 			CriteriaDefinition criterion = forwardChain.get(current);
 			Condition result = null;
 
-			Condition condition = getCondition(criterion, table, entity, sqlParameterSource);
+			Condition condition = getCondition(criterion, table, entity, sqlParameterSource, atomicInteger);
 			if (condition != null) {
 				result = combine(criterion, mapped, criterion.getCombinator(), condition);
 			}
@@ -215,7 +219,7 @@ public class UpdateMapper extends QueryMapper {
 	@Nullable
 	private Condition unrollGroup(List<? extends CriteriaDefinition> criteria, Table table,
 			CriteriaDefinition.Combinator combinator, @Nullable RelationalPersistentEntity<?> entity,
-			MapSqlParameterSource sqlParameterSource) {
+			MapSqlParameterSource sqlParameterSource, AtomicInteger atomicInteger) {
 
 		Condition mapped = null;
 		for (CriteriaDefinition criterion : criteria) {
@@ -224,7 +228,7 @@ public class UpdateMapper extends QueryMapper {
 				continue;
 			}
 
-			Condition condition = unroll(criterion, table, entity, sqlParameterSource);
+			Condition condition = unroll(criterion, table, entity, sqlParameterSource, atomicInteger);
 
 			mapped = combine(criterion, mapped, combinator, condition);
 		}
@@ -235,7 +239,8 @@ public class UpdateMapper extends QueryMapper {
 	@Nullable
 	private Condition unrollGroup(List<? extends CriteriaDefinition> criteria, Table table,
 			CriteriaDefinition.Combinator combinator, @Nullable RelationalPersistentEntity<?> entity,
-			MapSqlParameterSource sqlParameterSource, Pair<Map<String, Table>, Map<String, Class<?>>> pair) {
+			MapSqlParameterSource sqlParameterSource, AtomicInteger atomicInteger,
+			Pair<Map<String, Table>, Map<String, Class<?>>> pair) {
 
 		Condition mapped = null;
 		for (CriteriaDefinition criterion : criteria) {
@@ -244,7 +249,7 @@ public class UpdateMapper extends QueryMapper {
 				continue;
 			}
 
-			Condition condition = unroll(criterion, table, entity, sqlParameterSource, pair);
+			Condition condition = unroll(criterion, table, entity, sqlParameterSource, atomicInteger, pair);
 
 			mapped = combine(criterion, mapped, combinator, condition);
 		}
@@ -254,7 +259,8 @@ public class UpdateMapper extends QueryMapper {
 
 	@Nullable
 	private Condition getCondition(CriteriaDefinition criteria, Table table,
-			@Nullable RelationalPersistentEntity<?> entity, MapSqlParameterSource sqlParameterSource) {
+			@Nullable RelationalPersistentEntity<?> entity, MapSqlParameterSource sqlParameterSource,
+			AtomicInteger atomicInteger) {
 
 		if (criteria.isEmpty()) {
 			return null;
@@ -263,18 +269,18 @@ public class UpdateMapper extends QueryMapper {
 		if (criteria.isGroup()) {
 
 			Condition condition = unrollGroup(criteria.getGroup(), table, criteria.getCombinator(), entity,
-					sqlParameterSource);
+					sqlParameterSource, atomicInteger);
 
 			return condition == null ? null : Conditions.nest(condition);
 		}
 
-		return mapCondition(criteria, table, entity, sqlParameterSource);
+		return mapCondition(criteria, table, entity, sqlParameterSource, atomicInteger);
 	}
 
 	@Nullable
 	private Condition getCondition(CriteriaDefinition criteria, Table table,
 			@Nullable RelationalPersistentEntity<?> entity, MapSqlParameterSource sqlParameterSource,
-			Pair<Map<String, Table>, Map<String, Class<?>>> pair) {
+			AtomicInteger atomicInteger, Pair<Map<String, Table>, Map<String, Class<?>>> pair) {
 
 		if (criteria.isEmpty()) {
 			return null;
@@ -283,12 +289,12 @@ public class UpdateMapper extends QueryMapper {
 		if (criteria.isGroup()) {
 
 			Condition condition = unrollGroup(criteria.getGroup(), table, criteria.getCombinator(), entity,
-					sqlParameterSource, pair);
+					sqlParameterSource, atomicInteger, pair);
 
 			return condition == null ? null : Conditions.nest(condition);
 		}
 
-		return mapCondition(criteria, table, entity, sqlParameterSource);
+		return mapCondition(criteria, table, entity, sqlParameterSource, atomicInteger);
 	}
 
 	private Condition combine(CriteriaDefinition criteria, @Nullable Condition currentCondition,
@@ -309,7 +315,8 @@ public class UpdateMapper extends QueryMapper {
 
 	@SuppressWarnings("unchecked")
 	private Condition mapCondition(CriteriaDefinition criteria, Table table,
-			@Nullable RelationalPersistentEntity<?> entity, MapSqlParameterSource sqlParameterSource) {
+			@Nullable RelationalPersistentEntity<?> entity, MapSqlParameterSource sqlParameterSource,
+			AtomicInteger atomicInteger) {
 
 		Field propertyField = createPropertyFieldCustom(entity, criteria.getColumn(), getMappingContext());
 		Column column = table.column(propertyField.getMappedColumnName());
@@ -331,7 +338,7 @@ public class UpdateMapper extends QueryMapper {
 		}
 
 		return createCondition(column, mappedValue, typeHint, criteria.getComparator(), criteria.isIgnoreCase(),
-				sqlParameterSource);
+				sqlParameterSource, atomicInteger);
 	}
 
 	private Escaper getEscaper(Comparator comparator) {
@@ -345,7 +352,8 @@ public class UpdateMapper extends QueryMapper {
 
 	@SuppressWarnings("unchecked")
 	private Condition createCondition(Column column, @Nullable Object mappedValue, Class<?> valueType,
-			Comparator comparator, boolean ignoreCase, MapSqlParameterSource sqlParameterSource) {
+			Comparator comparator, boolean ignoreCase, MapSqlParameterSource sqlParameterSource,
+			AtomicInteger atomicInteger) {
 
 		if (comparator.equals(Comparator.IS_NULL)) {
 			return column.isNull();
@@ -378,14 +386,14 @@ public class UpdateMapper extends QueryMapper {
 						mappedValue instanceof Collection ? ((Collection<?>) mappedValue).size() : 10);
 
 				for (Object o : (Iterable<?>) mappedValue) {
-					expressions.add(bind(o, column, sqlParameterSource, valueType));
+					expressions.add(bind(o, atomicInteger, sqlParameterSource, valueType));
 				}
 
 				condition = Conditions.in(columnExpression, expressions.toArray(new Expression[0]));
 
 			} else {
 
-				Expression expression = bind(mappedValue, column, sqlParameterSource, valueType);
+				Expression expression = bind(mappedValue, atomicInteger, sqlParameterSource, valueType);
 
 				condition = Conditions.in(columnExpression, expression);
 			}
@@ -401,8 +409,8 @@ public class UpdateMapper extends QueryMapper {
 
 			Pair<Object, Object> pair = (Pair<Object, Object>) mappedValue;
 
-			Expression begin = bind(pair.getFirst(), column, sqlParameterSource, valueType, ignoreCase);
-			Expression end = bind(pair.getSecond(), column, sqlParameterSource, valueType, ignoreCase);
+			Expression begin = bind(pair.getFirst(), atomicInteger, sqlParameterSource, valueType, ignoreCase);
+			Expression end = bind(pair.getSecond(), atomicInteger, sqlParameterSource, valueType, ignoreCase);
 
 			return comparator == Comparator.BETWEEN ? Conditions.between(columnExpression, begin, end)
 					: Conditions.notBetween(columnExpression, begin, end);
@@ -410,35 +418,35 @@ public class UpdateMapper extends QueryMapper {
 
 		switch (comparator) {
 		case EQ: {
-			Expression expression = bind(mappedValue, column, sqlParameterSource, valueType, ignoreCase);
+			Expression expression = bind(mappedValue, atomicInteger, sqlParameterSource, valueType, ignoreCase);
 			return Conditions.isEqual(columnExpression, expression);
 		}
 		case NEQ: {
-			Expression expression = bind(mappedValue, column, sqlParameterSource, valueType, ignoreCase);
+			Expression expression = bind(mappedValue, atomicInteger, sqlParameterSource, valueType, ignoreCase);
 			return Conditions.isEqual(columnExpression, expression).not();
 		}
 		case LT: {
-			Expression expression = bind(mappedValue, column, sqlParameterSource, valueType);
+			Expression expression = bind(mappedValue, atomicInteger, sqlParameterSource, valueType);
 			return column.isLess(expression);
 		}
 		case LTE: {
-			Expression expression = bind(mappedValue, column, sqlParameterSource, valueType);
+			Expression expression = bind(mappedValue, atomicInteger, sqlParameterSource, valueType);
 			return column.isLessOrEqualTo(expression);
 		}
 		case GT: {
-			Expression expression = bind(mappedValue, column, sqlParameterSource, valueType);
+			Expression expression = bind(mappedValue, atomicInteger, sqlParameterSource, valueType);
 			return column.isGreater(expression);
 		}
 		case GTE: {
-			Expression expression = bind(mappedValue, column, sqlParameterSource, valueType);
+			Expression expression = bind(mappedValue, atomicInteger, sqlParameterSource, valueType);
 			return column.isGreaterOrEqualTo(expression);
 		}
 		case LIKE: {
-			Expression expression = bind(mappedValue, column, sqlParameterSource, valueType, ignoreCase);
+			Expression expression = bind(mappedValue, atomicInteger, sqlParameterSource, valueType, ignoreCase);
 			return Conditions.like(columnExpression, expression);
 		}
 		case NOT_LIKE: {
-			Expression expression = bind(mappedValue, column, sqlParameterSource, valueType, ignoreCase);
+			Expression expression = bind(mappedValue, atomicInteger, sqlParameterSource, valueType, ignoreCase);
 			return Conditions.notLike(columnExpression, expression);
 		}
 		default:
@@ -455,14 +463,14 @@ public class UpdateMapper extends QueryMapper {
 		return propertyType;
 	}
 
-	private Expression bind(@Nullable Object mappedValue, Column column, MapSqlParameterSource sqlParameterSource,
-			Class<?> valueType) {
-		return bind(mappedValue, column, sqlParameterSource, valueType, false);
+	private Expression bind(@Nullable Object mappedValue, AtomicInteger atomicInteger,
+			MapSqlParameterSource sqlParameterSource, Class<?> valueType) {
+		return bind(mappedValue, atomicInteger, sqlParameterSource, valueType, false);
 	}
 
-	private Expression bind(@Nullable Object mappedValue, Column column, MapSqlParameterSource sqlParameterSource,
-			Class<?> valueType, boolean ignoreCase) {
-		String n = column.getName().getReference();
+	private Expression bind(@Nullable Object mappedValue, AtomicInteger atomicInteger,
+			MapSqlParameterSource sqlParameterSource, Class<?> valueType, boolean ignoreCase) {
+		String n = "p" + atomicInteger.getAndIncrement();
 		sqlParameterSource.addValue(n, mappedValue);
 
 		return ignoreCase ? Functions.upper(SQL.bindMarker(":" + n)) : SQL.bindMarker(":" + n);

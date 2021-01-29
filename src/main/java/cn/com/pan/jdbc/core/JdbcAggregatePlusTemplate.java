@@ -2,6 +2,7 @@ package cn.com.pan.jdbc.core;
 
 import java.beans.FeatureDescriptor;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -48,8 +49,13 @@ public class JdbcAggregatePlusTemplate extends JdbcAggregateTemplate
 		this.projectionFactory.setBeanFactory(beanFactory);
 	}
 
-	public <T> Iterable<T> findALl(Query query, Class<T> entityClass) {
+	public <T> Iterable<T> findAll(Query query, Class<T> entityClass) {
 		return doFind(query, entityClass, getTableName(entityClass), entityClass);
+	}
+
+	public <T> T findOne(Query query, Class<T> entityClass) {
+		Iterator<T> iterator = doFind(query.limit(1), entityClass, getTableName(entityClass), entityClass).iterator();
+		return iterator.hasNext() ? iterator.next() : null;
 	}
 
 	<T> Iterable<T> doFind(Query query, Class<?> entityClass, SqlIdentifier tableName, Class<T> returnType) {
