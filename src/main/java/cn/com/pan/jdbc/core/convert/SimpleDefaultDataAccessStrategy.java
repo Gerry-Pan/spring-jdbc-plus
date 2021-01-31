@@ -43,6 +43,12 @@ public class SimpleDefaultDataAccessStrategy extends DefaultDataAccessStrategy i
 		this.statementMapper = new DefaultStatementMapper(dialect, renderContext, this.updateMapper, context);
 	}
 
+	@Override
+	public long count(PreparedOperation<?> operation, Class<?> domainType) {
+		String sql = operation.get();
+		return operations.queryForObject(sql, operation.getSqlParameterSource(), Long.class);
+	}
+
 	@SuppressWarnings("unchecked")
 	public <T> Iterable<T> findAll(PreparedOperation<?> operation, Class<T> domainType) {
 		String sql = operation.get();

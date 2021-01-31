@@ -7,6 +7,8 @@ import cn.com.pan.jdbc.core.StatementMapper;
 
 public interface DataAccessStrategySupport extends DataAccessStrategy {
 
+	public long count(PreparedOperation<?> operation, Class<?> domainType);
+	
 	public <T> Iterable<T> findAll(PreparedOperation<?> operation, Class<T> domainType);
 
 	public StatementMapper getStatementMapper();
