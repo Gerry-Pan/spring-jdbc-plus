@@ -48,7 +48,7 @@ public class User implements Serializable {
 	private Long departmentId;
 
 	@Transient
-	@ManyToOne(column = "department_id", property = "departmentId")
+	@ManyToOne(property = "departmentId")
 	private Department department;
 
 }
@@ -81,7 +81,7 @@ import org.springframework.data.relational.core.query.Query;
 @SpringBootTest
 public class JdbcTest {
 
-        @Autowired
+    @Autowired
 	private JdbcAggregatePlusTemplate jdbcAggregatePlusTemplate;
 
 	@Test

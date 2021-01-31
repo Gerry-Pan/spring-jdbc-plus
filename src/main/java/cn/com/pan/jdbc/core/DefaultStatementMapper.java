@@ -34,6 +34,7 @@ import org.springframework.data.relational.core.sql.Update;
 import org.springframework.data.relational.core.sql.render.RenderContext;
 import org.springframework.data.relational.core.sql.render.SqlRenderer;
 import org.springframework.data.util.Pair;
+import org.springframework.data.util.ParsingUtils;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.lang.Nullable;
@@ -242,7 +243,8 @@ public class DefaultStatementMapper implements StatementMapper {
 					right = Table.create(rightEntity.getTableName());
 
 					if (manyToOne != null) {
-						String col = manyToOne.column();
+						String property = manyToOne.property();
+						String col = ParsingUtils.reconcatenateCamelCase(property, "_");
 						String idProperty = rightEntity.getIdProperty().getName();
 
 						selectBuilder.join(right).on(Column.create(SqlIdentifier.quoted(col), left))
@@ -259,9 +261,13 @@ public class DefaultStatementMapper implements StatementMapper {
 						String col = null;
 
 						if (mto == null) {
-							col = mappedBy.concat("_id");
+							String property = mappedBy.concat("Id");
+
+							col = ParsingUtils.reconcatenateCamelCase(property, "_");
 						} else {
-							col = mto.column();
+							String property = manyToOne.property();
+
+							col = ParsingUtils.reconcatenateCamelCase(property, "_");
 						}
 
 						selectBuilder.join(right).on(Column.create(SqlIdentifier.quoted(idProperty), left))

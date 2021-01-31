@@ -17,13 +17,6 @@ import org.springframework.data.annotation.Transient;
 public @interface ManyToOne {
 
 	/**
-	 * Database Table中的欄位
-	 * 
-	 * @return
-	 */
-	String column();
-
-	/**
 	 * Java Entity中的屬性
 	 * 
 	 * @return

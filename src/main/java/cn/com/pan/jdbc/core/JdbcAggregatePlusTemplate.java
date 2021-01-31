@@ -67,6 +67,16 @@ public class JdbcAggregatePlusTemplate extends JdbcAggregateTemplate
 		return doCount(query, entityClass, getTableName(entityClass));
 	}
 
+	public <T> List<T> findList(Class<T> entityClass) {
+		Iterable<T> items = findAll(entityClass);
+		return StreamSupport.stream(items.spliterator(), false).collect(Collectors.toList());
+	}
+
+	public <T> List<T> findList(Query query, Class<T> entityClass) {
+		Iterable<T> items = findAll(query, entityClass);
+		return StreamSupport.stream(items.spliterator(), false).collect(Collectors.toList());
+	}
+
 	public <T> Iterable<T> findAll(Query query, Class<T> entityClass) {
 		return doFind(query, entityClass, getTableName(entityClass), entityClass);
 	}
