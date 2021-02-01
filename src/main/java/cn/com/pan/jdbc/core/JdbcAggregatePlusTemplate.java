@@ -1,7 +1,9 @@
 package cn.com.pan.jdbc.core;
 
 import java.beans.FeatureDescriptor;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -9,10 +11,13 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import org.springframework.beans.BeanWrapper;
+import org.springframework.beans.BeanWrapperImpl;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.context.ApplicationContext;
+import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -31,9 +36,14 @@ import org.springframework.data.relational.core.sql.Expression;
 import org.springframework.data.relational.core.sql.Functions;
 import org.springframework.data.relational.core.sql.SqlIdentifier;
 import org.springframework.data.relational.core.sql.Table;
+import org.springframework.data.util.ParsingUtils;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
 import cn.com.pan.jdbc.core.convert.DataAccessStrategySupport;
+import cn.com.pan.jdbc.core.mapping.ManyToMany;
 
 /**
  * 
@@ -42,6 +52,10 @@ import cn.com.pan.jdbc.core.convert.DataAccessStrategySupport;
  */
 public class JdbcAggregatePlusTemplate extends JdbcAggregateTemplate
 		implements JdbcAggregateOperations, BeanFactoryAware {
+
+	private final static String manyToManyDeleteSqlFormat = "delete from %s where %s = :%s";
+
+	private final static String manyToManyInsertSqlFormat = "insert into %s(%s, %s) values(:%s, :%s)";
 
 	private final DataAccessStrategySupport accessStrategy;
 
@@ -61,6 +75,67 @@ public class JdbcAggregatePlusTemplate extends JdbcAggregateTemplate
 	@Override
 	public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
 		this.projectionFactory.setBeanFactory(beanFactory);
+	}
+
+	@Override
+	public <T> T save(T instance) {
+		T entity = super.save(instance);
+		Field[] fields = instance.getClass().getDeclaredFields();
+		RelationalPersistentEntity<?> persistentEntity = context.getRequiredPersistentEntity(entity.getClass());
+
+		RelationalPersistentProperty idProperty = persistentEntity.getIdProperty();
+		BeanWrapper bw = new BeanWrapperImpl(entity);
+		Object id = bw.getPropertyValue(idProperty.getName());
+
+		for (Field field : fields) {
+			ManyToMany mtm = AnnotatedElementUtils.findMergedAnnotation(field, ManyToMany.class);
+			if (mtm != null && StringUtils.hasText(mtm.column()) && StringUtils.hasText(mtm.inverseColumn())
+					&& StringUtils.hasText(mtm.table())) {
+				String reference = mtm.table();
+				String localColumn = mtm.column();
+				String inverseColumn = mtm.inverseColumn();
+
+				String lc = ParsingUtils.reconcatenateCamelCase(localColumn, "_");
+				String ic = ParsingUtils.reconcatenateCamelCase(inverseColumn, "_");
+
+				String deleteSql = String.format(manyToManyDeleteSqlFormat, reference, lc, lc);
+
+				MapSqlParameterSource ps = new MapSqlParameterSource();
+				ps.addValue(lc, id);
+
+				accessStrategy.update(deleteSql, ps);
+
+				String insertSql = String.format(manyToManyInsertSqlFormat, reference, lc, ic, lc, ic);
+
+				Collection<?> collection = (Collection<?>) bw.getPropertyValue(field.getName());
+
+				if (collection != null) {
+					RelationalPersistentEntity<?> pe = null;
+					RelationalPersistentProperty ip = null;
+					List<SqlParameterSource> psList = new ArrayList<SqlParameterSource>();
+					for (Object item : collection) {
+						if (pe == null) {
+							pe = context.getRequiredPersistentEntity(item.getClass());
+							ip = pe.getIdProperty();
+						}
+
+						BeanWrapper ibw = new BeanWrapperImpl(item);
+						Object inverseId = ibw.getPropertyValue(ip.getName());
+
+						MapSqlParameterSource ips = new MapSqlParameterSource();
+						ips.addValue(lc, id);
+						ips.addValue(ic, inverseId);
+
+						psList.add(ips);
+					}
+
+					accessStrategy.batchUpdate(insertSql, psList.toArray(new SqlParameterSource[psList.size()]));
+				}
+
+			}
+		}
+
+		return entity;
 	}
 
 	public Long count(Query query, Class<?> entityClass) {

@@ -1,5 +1,7 @@
 package cn.com.pan.jdbc.core.convert;
 
+import java.util.Map;
+
 import org.springframework.data.jdbc.core.convert.DefaultDataAccessStrategy;
 import org.springframework.data.jdbc.core.convert.EntityRowMapper;
 import org.springframework.data.jdbc.core.convert.JdbcConverter;
@@ -11,6 +13,7 @@ import org.springframework.data.relational.core.mapping.RelationalPersistentEnti
 import org.springframework.data.relational.core.sql.render.RenderContext;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
+import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 
 import cn.com.pan.jdbc.core.DefaultStatementMapper;
 import cn.com.pan.jdbc.core.PreparedOperation;
@@ -53,6 +56,22 @@ public class SimpleDefaultDataAccessStrategy extends DefaultDataAccessStrategy i
 	public <T> Iterable<T> findAll(PreparedOperation<?> operation, Class<T> domainType) {
 		String sql = operation.get();
 		return operations.query(sql, operation.getSqlParameterSource(), (RowMapper<T>) getEntityRowMapper(domainType));
+	}
+
+	public int update(String sql, Map<String, ?> paramMap) {
+		return operations.update(sql, paramMap);
+	}
+
+	public int update(String sql, SqlParameterSource paramSource) {
+		return operations.update(sql, paramSource);
+	}
+
+	public int[] batchUpdate(String sql, Map<String, ?>[] batchValues) {
+		return operations.batchUpdate(sql, batchValues);
+	}
+
+	public int[] batchUpdate(String sql, SqlParameterSource[] batchArgs) {
+		return operations.batchUpdate(sql, batchArgs);
 	}
 
 	private EntityRowMapper<?> getEntityRowMapper(Class<?> domainType) {

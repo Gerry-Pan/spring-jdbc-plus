@@ -297,10 +297,13 @@ public class DefaultStatementMapper implements StatementMapper {
 							String leftIdProperty = leftEntity.getIdProperty().getName();
 							String rightIdProperty = rightEntity.getIdProperty().getName();
 
-							selectBuilder.join(middle).on(Column.create(SqlIdentifier.quoted(leftIdProperty), left))
-									.equals(Column.create(SqlIdentifier.quoted(localColumn), middle)).build();
+							String lc = ParsingUtils.reconcatenateCamelCase(localColumn, "_");
+							String ic = ParsingUtils.reconcatenateCamelCase(inverseColumn, "_");
 
-							selectBuilder.join(right).on(Column.create(SqlIdentifier.quoted(inverseColumn), middle))
+							selectBuilder.join(middle).on(Column.create(SqlIdentifier.quoted(leftIdProperty), left))
+									.equals(Column.create(SqlIdentifier.quoted(lc), middle)).build();
+
+							selectBuilder.join(right).on(Column.create(SqlIdentifier.quoted(ic), middle))
 									.equals(Column.create(SqlIdentifier.quoted(rightIdProperty), right)).build();
 
 							f = true;
@@ -319,10 +322,13 @@ public class DefaultStatementMapper implements StatementMapper {
 							String leftIdProperty = leftEntity.getIdProperty().getName();
 							String rightIdProperty = rightEntity.getIdProperty().getName();
 
-							selectBuilder.join(middle).on(Column.create(SqlIdentifier.quoted(leftIdProperty), left))
-									.equals(Column.create(SqlIdentifier.quoted(inverseColumn), middle)).build();
+							String lc = ParsingUtils.reconcatenateCamelCase(localColumn, "_");
+							String ic = ParsingUtils.reconcatenateCamelCase(inverseColumn, "_");
 
-							selectBuilder.join(right).on(Column.create(SqlIdentifier.quoted(localColumn), middle))
+							selectBuilder.join(middle).on(Column.create(SqlIdentifier.quoted(leftIdProperty), left))
+									.equals(Column.create(SqlIdentifier.quoted(ic), middle)).build();
+
+							selectBuilder.join(right).on(Column.create(SqlIdentifier.quoted(lc), middle))
 									.equals(Column.create(SqlIdentifier.quoted(rightIdProperty), right)).build();
 
 							f = true;
