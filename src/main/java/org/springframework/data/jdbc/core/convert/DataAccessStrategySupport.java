@@ -1,12 +1,10 @@
-package cn.com.pan.jdbc.core.convert;
+package org.springframework.data.jdbc.core.convert;
 
 import java.util.Map;
 
-import org.springframework.data.jdbc.core.convert.DataAccessStrategy;
+import org.springframework.data.jdbc.core.PreparedOperation;
+import org.springframework.data.jdbc.core.StatementMapper;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
-
-import cn.com.pan.jdbc.core.PreparedOperation;
-import cn.com.pan.jdbc.core.StatementMapper;
 
 public interface DataAccessStrategySupport extends DataAccessStrategy {
 

@@ -1,4 +1,4 @@
-package cn.com.pan.jdbc.core;
+package org.springframework.data.jdbc.core;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -16,6 +16,12 @@ import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.springframework.data.jdbc.core.mapping.ManyToMany;
+import org.springframework.data.jdbc.core.mapping.ManyToOne;
+import org.springframework.data.jdbc.core.mapping.OneToMany;
+import org.springframework.data.jdbc.exception.SelectBuildException;
+import org.springframework.data.jdbc.repository.query.BoundCondition;
+import org.springframework.data.jdbc.repository.query.UpdateMapper;
 import org.springframework.data.relational.core.dialect.Dialect;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
 import org.springframework.data.relational.core.mapping.RelationalPersistentEntity;
@@ -41,13 +47,6 @@ import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ReflectionUtils;
 import org.springframework.util.StringUtils;
-
-import cn.com.pan.jdbc.core.mapping.ManyToMany;
-import cn.com.pan.jdbc.core.mapping.ManyToOne;
-import cn.com.pan.jdbc.core.mapping.OneToMany;
-import cn.com.pan.jdbc.exception.SelectBuildException;
-import cn.com.pan.jdbc.query.BoundCondition;
-import cn.com.pan.jdbc.query.UpdateMapper;
 
 /**
  * 

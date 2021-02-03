@@ -1,4 +1,4 @@
-package cn.com.pan.jdbc.query;
+package org.springframework.data.jdbc.repository.query;
 
 import org.springframework.data.relational.core.sql.Condition;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;

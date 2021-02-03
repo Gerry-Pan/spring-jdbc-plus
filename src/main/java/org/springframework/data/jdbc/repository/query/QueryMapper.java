@@ -1,4 +1,4 @@
-package cn.com.pan.jdbc.query;
+package org.springframework.data.jdbc.repository.query;
 
 import java.sql.Types;
 import java.util.ArrayList;

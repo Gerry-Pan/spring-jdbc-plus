@@ -1,4 +1,4 @@
-package cn.com.pan.jdbc.query;
+package org.springframework.data.jdbc.repository.query;
 
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.data.jdbc.core.convert.JdbcConverter;
+import org.springframework.data.jdbc.exception.SelectBuildException;
 import org.springframework.data.mapping.context.MappingContext;
 import org.springframework.data.relational.core.dialect.Dialect;
 import org.springframework.data.relational.core.dialect.Escaper;
@@ -35,8 +36,6 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
-
-import cn.com.pan.jdbc.exception.SelectBuildException;
 
 public class UpdateMapper extends QueryMapper {
 

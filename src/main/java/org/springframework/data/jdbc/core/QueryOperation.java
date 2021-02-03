@@ -1,4 +1,4 @@
-package cn.com.pan.jdbc.core;
+package org.springframework.data.jdbc.core;
 
 import java.util.function.Supplier;
 

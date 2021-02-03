@@ -1,4 +1,4 @@
-package cn.com.pan.jdbc.core.mapping;
+package org.springframework.data.jdbc.core.mapping;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -9,13 +9,18 @@ import java.lang.annotation.Target;
 
 import org.springframework.data.annotation.Transient;
 
-@Inherited
-@Transient
-@Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ ElementType.FIELD, ElementType.METHOD })
-public @interface OneToMany {
+@Documented
+@Inherited
+@Transient
+public @interface ManyToOne {
 
-	String mappedBy() default "";
+	/**
+	 * Java Entity中的屬性
+	 * 
+	 * @return
+	 */
+	String property();
 
 }

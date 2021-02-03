@@ -1,4 +1,4 @@
-package cn.com.pan.jdbc.exception;
+package org.springframework.data.jdbc.exception;
 
 public class SelectBuildException extends RuntimeException {
 

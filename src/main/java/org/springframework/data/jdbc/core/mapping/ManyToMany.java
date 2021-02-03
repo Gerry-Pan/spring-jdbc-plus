@@ -1,4 +1,4 @@
-package cn.com.pan.jdbc.core.mapping;
+package org.springframework.data.jdbc.core.mapping;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;

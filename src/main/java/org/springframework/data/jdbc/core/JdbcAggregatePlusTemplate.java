@@ -1,4 +1,4 @@
-package cn.com.pan.jdbc.core;
+package org.springframework.data.jdbc.core;
 
 import java.beans.FeatureDescriptor;
 import java.lang.reflect.Field;
@@ -22,9 +22,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jdbc.core.JdbcAggregateOperations;
-import org.springframework.data.jdbc.core.JdbcAggregateTemplate;
+import org.springframework.data.jdbc.core.convert.DataAccessStrategySupport;
 import org.springframework.data.jdbc.core.convert.JdbcConverter;
+import org.springframework.data.jdbc.core.mapping.ManyToMany;
 import org.springframework.data.projection.ProjectionInformation;
 import org.springframework.data.projection.SpelAwareProxyProjectionFactory;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
@@ -41,9 +41,6 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
-
-import cn.com.pan.jdbc.core.convert.DataAccessStrategySupport;
-import cn.com.pan.jdbc.core.mapping.ManyToMany;
 
 /**
  * 
@@ -109,7 +106,7 @@ public class JdbcAggregatePlusTemplate extends JdbcAggregateTemplate
 
 				Collection<?> collection = (Collection<?>) bw.getPropertyValue(field.getName());
 
-				if (collection != null) {
+				if (!CollectionUtils.isEmpty(collection)) {
 					RelationalPersistentEntity<?> pe = null;
 					RelationalPersistentProperty ip = null;
 					List<SqlParameterSource> psList = new ArrayList<SqlParameterSource>();

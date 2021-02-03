@@ -1,11 +1,11 @@
-package cn.com.pan.jdbc.core.convert;
+package org.springframework.data.jdbc.core.convert;
 
 import java.util.Map;
 
-import org.springframework.data.jdbc.core.convert.DefaultDataAccessStrategy;
-import org.springframework.data.jdbc.core.convert.EntityRowMapper;
-import org.springframework.data.jdbc.core.convert.JdbcConverter;
-import org.springframework.data.jdbc.core.convert.SqlGeneratorSource;
+import org.springframework.data.jdbc.core.DefaultStatementMapper;
+import org.springframework.data.jdbc.core.PreparedOperation;
+import org.springframework.data.jdbc.core.StatementMapper;
+import org.springframework.data.jdbc.repository.query.UpdateMapper;
 import org.springframework.data.relational.core.dialect.Dialect;
 import org.springframework.data.relational.core.dialect.RenderContextFactory;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
@@ -14,11 +14,6 @@ import org.springframework.data.relational.core.sql.render.RenderContext;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
-
-import cn.com.pan.jdbc.core.DefaultStatementMapper;
-import cn.com.pan.jdbc.core.PreparedOperation;
-import cn.com.pan.jdbc.core.StatementMapper;
-import cn.com.pan.jdbc.query.UpdateMapper;
 
 public class SimpleDefaultDataAccessStrategy extends DefaultDataAccessStrategy implements DataAccessStrategySupport {
 
