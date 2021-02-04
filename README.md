@@ -73,6 +73,31 @@ public class Department implements Serializable {
 }
 ```
 
+dao类，@Query支持SpEl：
+```
+import org.springframework.data.jdbc.repository.query.Query;
+import org.springframework.data.repository.PagingAndSortingRepository;
+
+public interface UserDao extends PagingAndSortingRepository<User, Long> {
+
+	public List<User> findByUsername();
+
+	@Query(value = "select * from #{#table} t where 1 = 1 #{#username != null?'and username like :username':''}")
+	public List<User> queryByUsername(String table, String username);
+
+	@Query(value = "select * from #{#params['table']} t where 1 = 1 #{#params['username'] != null?'and username like :username':''}")
+	public List<User> findCondition(Map<String, Object> params);
+
+	@Query(value = "select * from #{#table} t where 1 = 1 #{#params?.username != null?'and username like :username':''}")
+	public List<User> findCondition(String table, User params);
+
+	@Query(value = "select * from t_sys_user t where 1 = 1 #{#params?.username != null?'and username like :username':''}")
+	public List<User> findCondition(User params);
+
+}
+```
+
+
 测试类：
 ```
 import org.springframework.data.relational.core.query.Criteria;
