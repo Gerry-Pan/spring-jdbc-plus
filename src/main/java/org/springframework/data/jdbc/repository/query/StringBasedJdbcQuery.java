@@ -26,6 +26,7 @@ import org.springframework.data.jdbc.core.convert.JdbcValue;
 import org.springframework.data.jdbc.support.JdbcUtil;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
 import org.springframework.data.relational.repository.query.RelationalParameters;
+import org.springframework.data.relational.repository.query.RelationalParameters.RelationalParameter;
 import org.springframework.data.repository.query.Parameter;
 import org.springframework.data.repository.query.QueryMethodEvaluationContextProvider;
 import org.springframework.data.repository.query.SpelQueryContext;
@@ -129,17 +130,50 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 	 */
 	@Override
 	public Object execute(Object[] objects) {
+		Metadata queryMeta = new Metadata();
+		List<ParameterBinding> bindings = new ArrayList<>();
+
 		String query = determineQuery();
 
 		RelationalParameters parameters = queryMethod.getParameters();
-
-		EvaluationContext evaluationContext = evaluationContextProvider.getEvaluationContext(parameters, objects);
+		MapSqlParameterSource sqlParameterSource = this.bindParameters(objects);
 
 		Expression e = parser.parseExpression(query, ParserContext.TEMPLATE_EXPRESSION);
+		EvaluationContext evaluationContext = evaluationContextProvider.getEvaluationContext(parameters, objects);
 
 		query = e.getValue(evaluationContext, String.class);
 
-		MapSqlParameterSource sqlParameterSource = this.bindParameters(objects);
+		query = ParameterBindingParser.INSTANCE.parseParameterBindingsOfQueryIntoBindingsAndReturnCleanedQuery(query,
+				bindings, queryMeta);
+
+		for (ParameterBinding binding : bindings) {
+			String name = binding.getName();
+			Integer position = binding.getPosition();
+
+			if (StringUtils.hasText(name) && !sqlParameterSource.hasValue(name)) {
+				Expression expression = parser.parseExpression(binding.getName(), ParserContext.TEMPLATE_EXPRESSION);
+
+				String value = expression.getValue(evaluationContext, String.class);
+
+				sqlParameterSource.addValue(name, value);
+			}
+
+			if (position != null) {
+				RelationalParameter p = parameters.getBindableParameter(position);
+				String parameterName = p.getName()
+						.orElseThrow(() -> new IllegalStateException(PARAMETER_NEEDS_TO_BE_NAMED));
+
+				query = query.replace("?" + position.toString(), ":" + parameterName);
+
+				Object value = evaluationContext.lookupVariable(parameterName);
+
+				if (value == null) {
+					value = objects[position];
+				}
+
+				sqlParameterSource.addValue(parameterName, value);
+			}
+		}
 
 		return executor.execute(query, sqlParameterSource);
 	}
@@ -313,7 +347,7 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 			 * Prefer indexed access over named parameters if only SpEL Expression
 			 * parameters are present.
 			 */
-			if (!parametersShouldBeAccessedByIndex && (query.contains("?#{") || query.contains("${"))) {
+			if (!parametersShouldBeAccessedByIndex && query.contains("?#{")) {
 				parametersShouldBeAccessedByIndex = true;
 				greatestParameterIndex = 0;
 			}
