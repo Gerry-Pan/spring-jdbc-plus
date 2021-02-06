@@ -9,7 +9,6 @@ Spring jdbc配置类：
 @EnableJdbcRepositories(basePackages = { "**" })
 public class JdbcConfiguration extends AbstractJdbcConfiguration {
 
-	@Bean
 	@Override
 	public DataAccessStrategySupport dataAccessStrategyBean(NamedParameterJdbcOperations operations,
 			JdbcConverter jdbcConverter, JdbcMappingContext context, Dialect dialect) {
@@ -18,9 +17,9 @@ public class JdbcConfiguration extends AbstractJdbcConfiguration {
 	}
 
 	@Override
-	public JdbcAggregatePlusTemplate jdbcAggregateTemplate(ApplicationContext applicationContext,
+	public JdbcEntityTemplate jdbcAggregateTemplate(ApplicationContext applicationContext,
 			JdbcMappingContext mappingContext, JdbcConverter converter, DataAccessStrategy dataAccessStrategy) {
-		return new JdbcAggregatePlusTemplate(applicationContext, mappingContext, converter,
+		return new JdbcEntityTemplate(applicationContext, mappingContext, converter,
 				(DataAccessStrategySupport) dataAccessStrategy);
 	}
 
@@ -69,11 +68,15 @@ public class Department implements Serializable {
 	private Long id;
 
 	private String name;
+	
+	@Transient
+	@OneToMany(mappedBy = "department")
+	private List<User> users;
 
 }
 ```
 
-dao类，@Query支持SpEl：
+dao类，@Query支持SpEL：
 ```
 import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.PagingAndSortingRepository;
@@ -112,8 +115,11 @@ import org.springframework.data.relational.core.query.Query;
 @SpringBootTest
 public class JdbcTest {
 
+	@Autowired
+	private UserDao userDao;
+	
     @Autowired
-	private JdbcAggregatePlusTemplate jdbcAggregatePlusTemplate;
+	private JdbcEntityTemplate jdbcEntityTemplate;
 
 	@Test
 	public void test() {
@@ -122,7 +128,7 @@ public class JdbcTest {
 			Integer pageNum = 1;
 			Criteria criteria = Criteria.where("name").like("%aa%").and("department.name").is("某某部门");
 			Query query = Query.query(criteria).with(PageRequest.of(pageNum - 1, pageSize));
-			Page<User> pageObject = jdbcAggregatePlusTemplate.findPage(query, User.class);
+			Page<User> pageObject = jdbcEntityTemplate.findPage(query, User.class);
 
 			Long total = pageObject.getTotalElements();
 			List<User> rows = pageObject.getContent();
@@ -135,6 +141,78 @@ public class JdbcTest {
 			e.printStackTrace();
 		}
 	}
+	
+	/**
+	 * 分表时使用方式
+	 */
+	@Test
+	public void test1() {
+		try {
+			Integer pageSize = 10;
+			Integer pageNum = 1;
+			Criteria criteria = Criteria.where("name").like("%aa%").and("department.name").is("某某部门");
+			Query query = Query.query(criteria).table("t_sys_user_20210101")
+					.with(PageRequest.of(pageNum - 1, pageSize));
+			Page<User> pageObject = jdbcEntityTemplate.findPage(query, User.class);
+
+			Long total = pageObject.getTotalElements();
+			List<User> rows = pageObject.getContent();
+
+			rows.forEach(row -> System.out.println(row.getUsername()));
+
+			System.out.println(total);
+			System.out.println("end");
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	@Test
+	public void test2() {
+		try {
+			Integer pageSize = 10;
+			Integer pageNum = 1;
+			Criteria criteria = Criteria.where("users.username").like("%aa%");
+			Query query = Query.query(criteria).with(PageRequest.of(pageNum - 1, pageSize));
+			Page<Department> pageObject = jdbcEntityTemplate.findPage(query, Department.class);
+
+			Long total = pageObject.getTotalElements();
+			List<Department> rows = pageObject.getContent();
+
+			rows.forEach(row -> System.out.println(row.getName()));
+
+			System.out.println(total);
+			System.out.println("end");
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * 分表时使用方式
+	 */
+	@Test
+	public void test3() {
+		try {
+			User user = new User().setUsername("%a%");
+			List<User> rows = userDao.findCondition("t_sys_user_20210101", user);
+			rows.forEach(row -> System.out.println(row.getUsername()));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	@Test
+	public void test4() {
+		try {
+			User user = new User().setUsername("%a%");
+			List<User> rows = userDao.findCondition(user);
+			rows.forEach(row -> System.out.println(row.getUsername()));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
 }
 ```
 

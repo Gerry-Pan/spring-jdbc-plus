@@ -24,9 +24,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jdbc.core.convert.DataAccessStrategySupport;
 import org.springframework.data.jdbc.core.convert.JdbcConverter;
-import org.springframework.data.jdbc.core.mapping.ManyToMany;
 import org.springframework.data.projection.ProjectionInformation;
 import org.springframework.data.projection.SpelAwareProxyProjectionFactory;
+import org.springframework.data.relational.core.mapping.ManyToMany;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
 import org.springframework.data.relational.core.mapping.RelationalPersistentEntity;
 import org.springframework.data.relational.core.mapping.RelationalPersistentProperty;
@@ -195,6 +195,10 @@ public class JdbcAggregatePlusTemplate extends JdbcAggregateTemplate
 
 		Query q = query;
 
+		if (q.getTable() != null) {
+			tableName = q.getTable();
+		}
+
 		StatementMapper statementMapper = accessStrategy.getStatementMapper().forType(entityClass);
 
 		StatementMapper.SelectSpec selectSpec = statementMapper //
@@ -226,6 +230,10 @@ public class JdbcAggregatePlusTemplate extends JdbcAggregateTemplate
 	<T> Long doCount(Query query, Class<?> entityClass, SqlIdentifier tableName) {
 		RelationalPersistentEntity<?> entity = getRequiredEntity(entityClass);
 		StatementMapper statementMapper = accessStrategy.getStatementMapper().forType(entityClass);
+
+		if (query.getTable() != null) {
+			tableName = query.getTable();
+		}
 
 		StatementMapper.SelectSpec selectSpec = statementMapper //
 				.createSelect(tableName) //
