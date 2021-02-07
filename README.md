@@ -104,8 +104,14 @@ public interface UserDao extends PagingAndSortingRepository<User, Long> {
 	@Query(value = "select * from #{#table} t where 1 = 1 and username like ?1")
 	public List<User> selectByUsername(String table, String username);
 
-	@Query(value = "select * from #{#table} t where 1 = 1 and username like :username")
+	@Query(value = "select * from #{#table} t where 1 = 1 and username like :#{#username}")
 	public List<User> fetchByUsername(String table, String username);
+
+	@Query(value = "select * from #{#table} t where 1 = 1 and username like :username")
+	public List<User> fetchByUsername1(String table, String username);
+
+	@Query(value = "select * from #{#entityName} t where 1 = 1 #{#params?.username != null?'and username like :#{#params.username}':''}")
+	public List<User> fetchCondition(User params);
 
 }
 ```

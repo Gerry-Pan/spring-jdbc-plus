@@ -25,8 +25,8 @@ import org.springframework.data.jdbc.core.convert.JdbcConverter;
 import org.springframework.data.jdbc.core.convert.JdbcValue;
 import org.springframework.data.jdbc.support.JdbcUtil;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
+import org.springframework.data.relational.repository.query.RelationalEntityMetadata;
 import org.springframework.data.relational.repository.query.RelationalParameters;
-import org.springframework.data.relational.repository.query.SimpleRelationalEntityMetadata;
 import org.springframework.data.relational.repository.query.RelationalParameters.RelationalParameter;
 import org.springframework.data.repository.query.Parameter;
 import org.springframework.data.repository.query.QueryMethodEvaluationContextProvider;
@@ -51,6 +51,12 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 
 	private static final String ENTITY_NAME = "entityName";
 	private static final String ENTITY_NAME_VARIABLE = "#" + ENTITY_NAME;
+
+	private static final String SYNTHETIC_PARAMETER_TEMPLATE = "__$synthetic$__%d";
+
+	private static final Pattern POSITION_BINDING_PATTERN = Pattern.compile("[?](\\d+)");
+
+	private static final Pattern EXPRESSION_BINDING_PATTERN = Pattern.compile("[:]#\\{#(.*?)}");
 
 	private static final String PARAMETER_NEEDS_TO_BE_NAMED = "For queries with named parameters you need to provide names for method parameters. Use @Param for query method parameters, or when on Java 8+ use the javac flag -parameters.";
 
@@ -134,7 +140,6 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 	 */
 	@Override
 	public Object execute(Object[] objects) {
-		Metadata queryMeta = new Metadata();
 		List<ParameterBinding> bindings = new ArrayList<>();
 
 		String query = determineQuery();
@@ -142,27 +147,24 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 		RelationalParameters parameters = queryMethod.getParameters();
 		MapSqlParameterSource sqlParameterSource = this.bindParameters(objects);
 
-		Expression e = parser.parseExpression(query, ParserContext.TEMPLATE_EXPRESSION);
 		EvaluationContext evaluationContext = evaluationContextProvider.getEvaluationContext(parameters, objects);
 
 		if (query.contains(ENTITY_NAME_VARIABLE)) {
-			SimpleRelationalEntityMetadata<?> metadata = (SimpleRelationalEntityMetadata<?>) queryMethod
-					.getEntityInformation();
+			RelationalEntityMetadata<?> metadata = queryMethod.getEntityInformation();
 
 			evaluationContext.setVariable(ENTITY_NAME, metadata.getTableName().toString());
 		}
 
-		query = e.getValue(evaluationContext, String.class);
-
-		query = ParameterBindingParser.INSTANCE.parseParameterBindingsOfQueryIntoBindingsAndReturnCleanedQuery(query,
-				bindings, queryMeta);
+		query = parseExpressionIntoBindings(query, bindings);
+		query = parsePositionIntoBindings(query, bindings);
 
 		for (ParameterBinding binding : bindings) {
 			String name = binding.getName();
 			Integer position = binding.getPosition();
 
 			if (StringUtils.hasText(name) && !sqlParameterSource.hasValue(name)) {
-				Expression expression = parser.parseExpression(binding.getName(), ParserContext.TEMPLATE_EXPRESSION);
+				Expression expression = parser.parseExpression(binding.getExpression(),
+						ParserContext.TEMPLATE_EXPRESSION);
 
 				String value = expression.getValue(evaluationContext, String.class);
 
@@ -185,6 +187,12 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 				sqlParameterSource.addValue(parameterName, value);
 			}
 		}
+
+		Expression e = parser.parseExpression(query, ParserContext.TEMPLATE_EXPRESSION);
+		query = e.getValue(evaluationContext, String.class);
+
+		System.out.println(query);
+		System.out.println(sqlParameterSource);
 
 		return executor.execute(query, sqlParameterSource);
 	}
@@ -289,6 +297,36 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 
 	private static boolean isUnconfigured(@Nullable Class<?> configuredClass, Class<?> defaultClass) {
 		return configuredClass == null || configuredClass == defaultClass;
+	}
+
+	private String parseExpressionIntoBindings(String query, List<ParameterBinding> bindings) {
+		Matcher matcher = EXPRESSION_BINDING_PATTERN.matcher(query);
+
+		int i = 0;
+		while (matcher.find()) {
+			String s = matcher.group(0).replace(":", "");
+			String n = String.format(SYNTHETIC_PARAMETER_TEMPLATE, i);
+
+			query = query.replace(s, n);
+
+			bindings.add(new ParameterBinding(n, null, s));
+
+			i++;
+		}
+
+		return query;
+	}
+
+	private String parsePositionIntoBindings(String query, List<ParameterBinding> bindings) {
+		Matcher matcher = POSITION_BINDING_PATTERN.matcher(query);
+
+		while (matcher.find()) {
+			String s = matcher.group(1);
+
+			bindings.add(new ParameterBinding(null, Integer.parseInt(s), null));
+		}
+
+		return query;
 	}
 
 	enum ParameterBindingParser {

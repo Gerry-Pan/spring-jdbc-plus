@@ -27,6 +27,7 @@ import org.springframework.data.jdbc.core.convert.JdbcConverter;
 import org.springframework.data.projection.ProjectionInformation;
 import org.springframework.data.projection.SpelAwareProxyProjectionFactory;
 import org.springframework.data.relational.core.mapping.ManyToMany;
+import org.springframework.data.relational.core.mapping.NamingStrategy;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
 import org.springframework.data.relational.core.mapping.RelationalPersistentEntity;
 import org.springframework.data.relational.core.mapping.RelationalPersistentProperty;
@@ -36,7 +37,6 @@ import org.springframework.data.relational.core.sql.Expression;
 import org.springframework.data.relational.core.sql.Functions;
 import org.springframework.data.relational.core.sql.SqlIdentifier;
 import org.springframework.data.relational.core.sql.Table;
-import org.springframework.data.util.ParsingUtils;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.util.CollectionUtils;
@@ -84,6 +84,8 @@ public class JdbcAggregatePlusTemplate extends JdbcAggregateTemplate
 		BeanWrapper bw = new BeanWrapperImpl(entity);
 		Object id = bw.getPropertyValue(idProperty.getName());
 
+		NamingStrategy namingStrategy = context.getNamingStrategy();
+
 		for (Field field : fields) {
 			ManyToMany mtm = AnnotatedElementUtils.findMergedAnnotation(field, ManyToMany.class);
 			if (mtm != null && StringUtils.hasText(mtm.column()) && StringUtils.hasText(mtm.inverseColumn())
@@ -92,8 +94,8 @@ public class JdbcAggregatePlusTemplate extends JdbcAggregateTemplate
 				String localColumn = mtm.column();
 				String inverseColumn = mtm.inverseColumn();
 
-				String lc = ParsingUtils.reconcatenateCamelCase(localColumn, "_");
-				String ic = ParsingUtils.reconcatenateCamelCase(inverseColumn, "_");
+				String lc = namingStrategy.getColumnName(localColumn);
+				String ic = namingStrategy.getColumnName(inverseColumn);
 
 				String deleteSql = String.format(manyToManyDeleteSqlFormat, reference, lc, lc);
 
