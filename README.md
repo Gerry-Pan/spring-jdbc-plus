@@ -92,13 +92,13 @@ public interface UserDao extends PagingAndSortingRepository<User, Long> {
 	@Query(value = "select * from #{#entityName} t where 1 = 1 #{#username != null?'and username like :username':''}")
 	public List<User> queryByUsername(String username);
 
-	@Query(value = "select * from #{#params['table']} t where 1 = 1 #{#params['username'] != null?'and username like :username':''}")
+	@Query(value = "select * from #{#params['table']} t where 1 = 1 #{#params['username'] != null?'and username like :#{#params['username']}':''}")
 	public List<User> findCondition(Map<String, Object> params);
 
-	@Query(value = "select * from #{#table} t where 1 = 1 #{#params?.username != null?'and username like :username':''}")
+	@Query(value = "select * from #{#table} t where 1 = 1 #{#params?.username != null?'and username like :#{#params.username}':''}")
 	public List<User> findCondition(String table, User params);
 
-	@Query(value = "select * from #{#entityName} t where 1 = 1 #{#params?.username != null?'and username like :username':''}")
+	@Query(value = "select * from #{#entityName} t where 1 = 1 #{#params?.username != null?'and username like :#{#params.username}':''}")
 	public List<User> findCondition(User params);
 
 	@Query(value = "select * from #{#table} t where 1 = 1 and username like ?1")
@@ -110,8 +110,12 @@ public interface UserDao extends PagingAndSortingRepository<User, Long> {
 	@Query(value = "select * from #{#table} t where 1 = 1 and username like :username")
 	public List<User> fetchByUsername1(String table, String username);
 
-	@Query(value = "select * from #{#entityName} t where 1 = 1 #{#params?.username != null?'and username like :#{#params.username}':''}")
+	// 0 is parameter index of method
+	@Query(value = "select * from #{#entityName} t where 1 = 1 #{[0]?.username != null?'and username like :#{[0].username}':''}")
 	public List<User> fetchCondition(User params);
+
+	@Query(value = "select * from #{#params['table']} t where 1 = 1 #{[0]['username'] != null?'and username like :#{[0]['username']}':''}")
+	public List<User> fetchCondition(Map<String, Object> params);
 
 }
 ```

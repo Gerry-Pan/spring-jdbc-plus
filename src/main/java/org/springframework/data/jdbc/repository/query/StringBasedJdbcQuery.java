@@ -56,7 +56,7 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 
 	private static final Pattern POSITION_BINDING_PATTERN = Pattern.compile("[?](\\d+)");
 
-	private static final Pattern EXPRESSION_BINDING_PATTERN = Pattern.compile("[:]#\\{#(.*?)}");
+	private static final Pattern EXPRESSION_BINDING_PATTERN = Pattern.compile("[:]#\\{(.*?)}");
 
 	private static final String PARAMETER_NEEDS_TO_BE_NAMED = "For queries with named parameters you need to provide names for method parameters. Use @Param for query method parameters, or when on Java 8+ use the javac flag -parameters.";
 
@@ -190,9 +190,6 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 
 		Expression e = parser.parseExpression(query, ParserContext.TEMPLATE_EXPRESSION);
 		query = e.getValue(evaluationContext, String.class);
-
-		System.out.println(query);
-		System.out.println(sqlParameterSource);
 
 		return executor.execute(query, sqlParameterSource);
 	}
