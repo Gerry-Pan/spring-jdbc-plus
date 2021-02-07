@@ -85,8 +85,12 @@ public interface UserDao extends PagingAndSortingRepository<User, Long> {
 
 	public List<User> findByUsername(String username);
 
-	@Query(value = "select * from #{#table} t where 1 = 1 #{#username != null?'and username like :username':''}")
+	// entityName的值是Repository的domain class的@Table的value
+	@Query(value = "select * from #{(#table==null || #table=='')?#entityName:#table} t where 1 = 1 #{#username != null?'and username like :username':''}")
 	public List<User> queryByUsername(String table, String username);
+
+	@Query(value = "select * from #{#entityName} t where 1 = 1 #{#username != null?'and username like :username':''}")
+	public List<User> queryByUsername(String username);
 
 	@Query(value = "select * from #{#params['table']} t where 1 = 1 #{#params['username'] != null?'and username like :username':''}")
 	public List<User> findCondition(Map<String, Object> params);
@@ -94,12 +98,12 @@ public interface UserDao extends PagingAndSortingRepository<User, Long> {
 	@Query(value = "select * from #{#table} t where 1 = 1 #{#params?.username != null?'and username like :username':''}")
 	public List<User> findCondition(String table, User params);
 
-	@Query(value = "select * from t_sys_user t where 1 = 1 #{#params?.username != null?'and username like :username':''}")
+	@Query(value = "select * from #{#entityName} t where 1 = 1 #{#params?.username != null?'and username like :username':''}")
 	public List<User> findCondition(User params);
 
 	@Query(value = "select * from #{#table} t where 1 = 1 and username like ?1")
 	public List<User> selectByUsername(String table, String username);
-	
+
 	@Query(value = "select * from #{#table} t where 1 = 1 and username like :username")
 	public List<User> fetchByUsername(String table, String username);
 

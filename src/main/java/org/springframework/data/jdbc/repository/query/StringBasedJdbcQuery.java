@@ -26,6 +26,7 @@ import org.springframework.data.jdbc.core.convert.JdbcValue;
 import org.springframework.data.jdbc.support.JdbcUtil;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
 import org.springframework.data.relational.repository.query.RelationalParameters;
+import org.springframework.data.relational.repository.query.SimpleRelationalEntityMetadata;
 import org.springframework.data.relational.repository.query.RelationalParameters.RelationalParameter;
 import org.springframework.data.repository.query.Parameter;
 import org.springframework.data.repository.query.QueryMethodEvaluationContextProvider;
@@ -47,6 +48,9 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 public class StringBasedJdbcQuery extends AbstractJdbcQuery {
+
+	private static final String ENTITY_NAME = "entityName";
+	private static final String ENTITY_NAME_VARIABLE = "#" + ENTITY_NAME;
 
 	private static final String PARAMETER_NEEDS_TO_BE_NAMED = "For queries with named parameters you need to provide names for method parameters. Use @Param for query method parameters, or when on Java 8+ use the javac flag -parameters.";
 
@@ -140,6 +144,13 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 
 		Expression e = parser.parseExpression(query, ParserContext.TEMPLATE_EXPRESSION);
 		EvaluationContext evaluationContext = evaluationContextProvider.getEvaluationContext(parameters, objects);
+
+		if (query.contains(ENTITY_NAME_VARIABLE)) {
+			SimpleRelationalEntityMetadata<?> metadata = (SimpleRelationalEntityMetadata<?>) queryMethod
+					.getEntityInformation();
+
+			evaluationContext.setVariable(ENTITY_NAME, metadata.getTableName().toString());
+		}
 
 		query = e.getValue(evaluationContext, String.class);
 
