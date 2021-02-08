@@ -166,7 +166,7 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 				Expression expression = parser.parseExpression(binding.getExpression(),
 						ParserContext.TEMPLATE_EXPRESSION);
 
-				String value = expression.getValue(evaluationContext, String.class);
+				Object value = expression.getValue(evaluationContext);
 
 				sqlParameterSource.addValue(name, value);
 			}

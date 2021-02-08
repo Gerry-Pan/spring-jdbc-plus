@@ -10,7 +10,6 @@
 	</parent>
 	<groupId>cn.com.pan</groupId>
 	<artifactId>spring-jdbc-plus</artifactId>
-	<version>1.0</version>
 	<packaging>jar</packaging>
 
 	<name>spring-jdbc-plus</name>
