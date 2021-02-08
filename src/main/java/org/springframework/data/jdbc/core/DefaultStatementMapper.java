@@ -247,7 +247,7 @@ public class DefaultStatementMapper implements StatementMapper {
 						String col = namingStrategy.getColumnName(property);
 						String idProperty = rightEntity.getIdProperty().getName();
 
-						selectBuilder.join(right).on(Column.create(SqlIdentifier.quoted(col), left))
+						selectBuilder.leftOuterJoin(right).on(Column.create(SqlIdentifier.quoted(col), left))
 								.equals(Column.create(SqlIdentifier.quoted(idProperty), right)).build();
 					}
 
@@ -300,10 +300,11 @@ public class DefaultStatementMapper implements StatementMapper {
 							String lc = namingStrategy.getColumnName(localColumn);
 							String ic = namingStrategy.getColumnName(inverseColumn);
 
-							selectBuilder.join(middle).on(Column.create(SqlIdentifier.quoted(leftIdProperty), left))
+							selectBuilder.leftOuterJoin(middle)
+									.on(Column.create(SqlIdentifier.quoted(leftIdProperty), left))
 									.equals(Column.create(SqlIdentifier.quoted(lc), middle)).build();
 
-							selectBuilder.join(right).on(Column.create(SqlIdentifier.quoted(ic), middle))
+							selectBuilder.leftOuterJoin(right).on(Column.create(SqlIdentifier.quoted(ic), middle))
 									.equals(Column.create(SqlIdentifier.quoted(rightIdProperty), right)).build();
 
 							f = true;
@@ -325,10 +326,11 @@ public class DefaultStatementMapper implements StatementMapper {
 							String lc = namingStrategy.getColumnName(localColumn);
 							String ic = namingStrategy.getColumnName(inverseColumn);
 
-							selectBuilder.join(middle).on(Column.create(SqlIdentifier.quoted(leftIdProperty), left))
+							selectBuilder.leftOuterJoin(middle)
+									.on(Column.create(SqlIdentifier.quoted(leftIdProperty), left))
 									.equals(Column.create(SqlIdentifier.quoted(ic), middle)).build();
 
-							selectBuilder.join(right).on(Column.create(SqlIdentifier.quoted(lc), middle))
+							selectBuilder.leftOuterJoin(right).on(Column.create(SqlIdentifier.quoted(lc), middle))
 									.equals(Column.create(SqlIdentifier.quoted(rightIdProperty), right)).build();
 
 							f = true;
