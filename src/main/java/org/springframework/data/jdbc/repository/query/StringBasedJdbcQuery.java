@@ -20,6 +20,7 @@ import java.util.regex.Pattern;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.BeanWrapperImpl;
+import org.springframework.beans.factory.BeanFactory;
 import org.springframework.data.jdbc.core.convert.JdbcColumnTypes;
 import org.springframework.data.jdbc.core.convert.JdbcConverter;
 import org.springframework.data.jdbc.core.convert.JdbcValue;
@@ -63,6 +64,7 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 	private final JdbcQueryMethod queryMethod;
 	private final JdbcQueryExecution<?> executor;
 	private final JdbcConverter converter;
+	private BeanFactory beanFactory;
 
 	private SpelExpressionParser parser = new SpelExpressionParser();
 
@@ -253,7 +255,7 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 
 		String query = queryMethod.getDeclaredQuery();
 
-		if (StringUtils.isEmpty(query)) {
+		if (!StringUtils.hasText(query)) {
 			throw new IllegalStateException(String.format("No query specified on %s", queryMethod.getName()));
 		}
 
@@ -263,6 +265,15 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 	@Nullable
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	ResultSetExtractor<Object> determineResultSetExtractor(@Nullable RowMapper<Object> rowMapper) {
+
+		String resultSetExtractorRef = queryMethod.getResultSetExtractorRef();
+
+		if (StringUtils.hasText(resultSetExtractorRef)) {
+
+			Assert.notNull(beanFactory, "When a ResultSetExtractorRef is specified the BeanFactory must not be null");
+
+			return (ResultSetExtractor<Object>) beanFactory.getBean(resultSetExtractorRef);
+		}
 
 		Class<? extends ResultSetExtractor> resultSetExtractorClass = queryMethod.getResultSetExtractorClass();
 
@@ -282,6 +293,15 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 
 	@SuppressWarnings("unchecked")
 	RowMapper<Object> determineRowMapper(@Nullable RowMapper<?> defaultMapper) {
+
+		String rowMapperRef = queryMethod.getRowMapperRef();
+
+		if (StringUtils.hasText(rowMapperRef)) {
+
+			Assert.notNull(beanFactory, "When a RowMapperRef is specified the BeanFactory must not be null");
+
+			return (RowMapper<Object>) beanFactory.getBean(rowMapperRef);
+		}
 
 		Class<?> rowMapperClass = queryMethod.getRowMapperClass();
 
@@ -324,6 +344,10 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 		}
 
 		return query;
+	}
+
+	public void setBeanFactory(BeanFactory beanFactory) {
+		this.beanFactory = beanFactory;
 	}
 
 	enum ParameterBindingParser {

@@ -29,6 +29,10 @@ public class JdbcConfiguration extends AbstractJdbcConfiguration {
 实体类：
 
 ```
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.relational.core.mapping.Table;
+
 @Table(value = "t_sys_user")
 public class User implements Serializable {
 
@@ -56,6 +60,10 @@ public class User implements Serializable {
 
 
 ```
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.relational.core.mapping.Table;
+
 @Table(value = "t_sys_department")
 public class Department implements Serializable {
 
@@ -83,7 +91,13 @@ import org.springframework.data.repository.PagingAndSortingRepository;
 
 public interface UserDao extends PagingAndSortingRepository<User, Long> {
 
-	public List<User> findByUsername(String username);
+	public Long countByUsernameLike(String username);
+
+	public List<User> findByUsernameLike(String username);
+
+	public Page<User> findByUsernameLike(String username, Pageable pageable);
+
+	public Slice<User> searchByUsernameLike(String username, Pageable pageable);
 
 	// entityName的值是Repository的domain class的@Table的value
 	@Query(value = "select * from #{(#table==null || #table=='')?#entityName:#table} t where 1 = 1 #{#username != null?'and username like :username':''}")
