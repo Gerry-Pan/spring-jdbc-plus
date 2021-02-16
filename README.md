@@ -50,7 +50,6 @@ public class User implements Serializable {
 
 	private Long departmentId;
 
-	@Transient
 	@ManyToOne(property = "departmentId")
 	private Department department;
 
@@ -77,7 +76,6 @@ public class Department implements Serializable {
 
 	private String name;
 	
-	@Transient
 	@OneToMany(mappedBy = "department")
 	private List<User> users;
 
@@ -149,7 +147,7 @@ public class JdbcTest {
 	@Autowired
 	private UserDao userDao;
 	
-    @Autowired
+        @Autowired
 	private JdbcEntityTemplate jdbcEntityTemplate;
 
 	@Test
