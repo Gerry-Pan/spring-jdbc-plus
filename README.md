@@ -9,18 +9,14 @@ Spring jdbc配置类：
 @EnableJdbcRepositories(basePackages = { "**" })
 public class JdbcConfiguration extends AbstractJdbcConfiguration {
 
-	@Override
-	public DataAccessStrategySupport dataAccessStrategyBean(NamedParameterJdbcOperations operations,
-			JdbcConverter jdbcConverter, JdbcMappingContext context, Dialect dialect) {
-		return new SimpleDefaultDataAccessStrategy(dialect, new SqlGeneratorSource(context, jdbcConverter, dialect),
-				context, jdbcConverter, operations);
-	}
+	@Autowired
+	private NamedParameterJdbcOperations operations;
 
 	@Override
 	public JdbcEntityTemplate jdbcAggregateTemplate(ApplicationContext applicationContext,
 			JdbcMappingContext mappingContext, JdbcConverter converter, DataAccessStrategy dataAccessStrategy) {
-		return new JdbcEntityTemplate(applicationContext, mappingContext, converter,
-				(DataAccessStrategySupport) dataAccessStrategy);
+		return new JdbcEntityTemplate(applicationContext, mappingContext, converter, dataAccessStrategy,
+				jdbcDialect(operations)).setOperations(operations);
 	}
 
 }
@@ -147,7 +143,7 @@ public class JdbcTest {
 	@Autowired
 	private UserDao userDao;
 	
-        @Autowired
+	@Autowired
 	private JdbcEntityTemplate jdbcEntityTemplate;
 
 	@Test

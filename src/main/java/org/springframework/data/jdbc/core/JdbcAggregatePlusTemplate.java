@@ -22,10 +22,14 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jdbc.core.convert.DataAccessStrategySupport;
+import org.springframework.data.jdbc.core.convert.DataAccessStrategy;
+import org.springframework.data.jdbc.core.convert.EntityRowMapper;
 import org.springframework.data.jdbc.core.convert.JdbcConverter;
+import org.springframework.data.jdbc.repository.query.UpdateMapper;
 import org.springframework.data.projection.ProjectionInformation;
 import org.springframework.data.projection.SpelAwareProxyProjectionFactory;
+import org.springframework.data.relational.core.dialect.Dialect;
+import org.springframework.data.relational.core.dialect.RenderContextFactory;
 import org.springframework.data.relational.core.mapping.ManyToMany;
 import org.springframework.data.relational.core.mapping.NamingStrategy;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
@@ -37,6 +41,8 @@ import org.springframework.data.relational.core.sql.Expression;
 import org.springframework.data.relational.core.sql.Functions;
 import org.springframework.data.relational.core.sql.SqlIdentifier;
 import org.springframework.data.relational.core.sql.Table;
+import org.springframework.data.relational.core.sql.render.RenderContext;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.util.CollectionUtils;
@@ -50,23 +56,28 @@ import org.springframework.util.StringUtils;
 public class JdbcAggregatePlusTemplate extends JdbcAggregateTemplate
 		implements JdbcAggregateOperations, BeanFactoryAware {
 
-	private final static String manyToManyDeleteSqlFormat = "delete from %s where %s = :%s";
-
-	private final static String manyToManyInsertSqlFormat = "insert into %s(%s, %s) values(:%s, :%s)";
-
-	private final DataAccessStrategySupport accessStrategy;
-
 	private final RelationalMappingContext context;
 
 	private final SpelAwareProxyProjectionFactory projectionFactory;
 
+	private final UpdateMapper updateMapper;
+
+	private final StatementMapper statementMapper;
+
+	private final JdbcConverter converter;
+
 	public JdbcAggregatePlusTemplate(ApplicationContext publisher, RelationalMappingContext context,
-			JdbcConverter converter, DataAccessStrategySupport dataAccessStrategy) {
+			JdbcConverter converter, DataAccessStrategy dataAccessStrategy, Dialect dialect) {
 		super(publisher, context, converter, dataAccessStrategy);
 
+		RenderContextFactory factory = new RenderContextFactory(dialect);
+		RenderContext renderContext = factory.createRenderContext();
+
 		this.context = context;
-		this.accessStrategy = dataAccessStrategy;
+		this.converter = converter;
 		this.projectionFactory = new SpelAwareProxyProjectionFactory();
+		this.updateMapper = new UpdateMapper(dialect, converter, context);
+		this.statementMapper = new DefaultStatementMapper(dialect, renderContext, this.updateMapper, context);
 	}
 
 	@Override
@@ -80,57 +91,68 @@ public class JdbcAggregatePlusTemplate extends JdbcAggregateTemplate
 		Field[] fields = instance.getClass().getDeclaredFields();
 		RelationalPersistentEntity<?> persistentEntity = context.getRequiredPersistentEntity(entity.getClass());
 
-		RelationalPersistentProperty idProperty = persistentEntity.getIdProperty();
-		BeanWrapper bw = new BeanWrapperImpl(entity);
-		Object id = bw.getPropertyValue(idProperty.getName());
+		Object id = null;
+		BeanWrapper bw = null;
+		RelationalPersistentProperty idProperty = null;
 
 		NamingStrategy namingStrategy = context.getNamingStrategy();
 
 		for (Field field : fields) {
 			ManyToMany mtm = AnnotatedElementUtils.findMergedAnnotation(field, ManyToMany.class);
-			if (mtm != null && StringUtils.hasText(mtm.column()) && StringUtils.hasText(mtm.inverseColumn())
-					&& StringUtils.hasText(mtm.table())) {
+
+			if (mtm != null) {
 				String reference = mtm.table();
 				String localColumn = mtm.column();
 				String inverseColumn = mtm.inverseColumn();
 
-				String lc = namingStrategy.getColumnName(localColumn);
-				String ic = namingStrategy.getColumnName(inverseColumn);
+				if (StringUtils.hasText(localColumn) && StringUtils.hasText(inverseColumn)
+						&& StringUtils.hasText(reference)) {
 
-				String deleteSql = String.format(manyToManyDeleteSqlFormat, reference, lc, lc);
+					if (idProperty == null) {
+						idProperty = persistentEntity.getIdProperty();
 
-				MapSqlParameterSource ps = new MapSqlParameterSource();
-				ps.addValue(lc, id);
-
-				accessStrategy.update(deleteSql, ps);
-
-				String insertSql = String.format(manyToManyInsertSqlFormat, reference, lc, ic, lc, ic);
-
-				Collection<?> collection = (Collection<?>) bw.getPropertyValue(field.getName());
-
-				if (!CollectionUtils.isEmpty(collection)) {
-					RelationalPersistentEntity<?> pe = null;
-					RelationalPersistentProperty ip = null;
-					List<SqlParameterSource> psList = new ArrayList<SqlParameterSource>();
-					for (Object item : collection) {
-						if (pe == null) {
-							pe = context.getRequiredPersistentEntity(item.getClass());
-							ip = pe.getIdProperty();
-						}
-
-						BeanWrapper ibw = new BeanWrapperImpl(item);
-						Object inverseId = ibw.getPropertyValue(ip.getName());
-
-						MapSqlParameterSource ips = new MapSqlParameterSource();
-						ips.addValue(lc, id);
-						ips.addValue(ic, inverseId);
-
-						psList.add(ips);
+						bw = new BeanWrapperImpl(entity);
+						id = bw.getPropertyValue(idProperty.getName());
 					}
 
-					accessStrategy.batchUpdate(insertSql, psList.toArray(new SqlParameterSource[psList.size()]));
-				}
+					String lc = namingStrategy.getColumnName(localColumn);
+					String ic = namingStrategy.getColumnName(inverseColumn);
 
+					String deleteSql = String.format(manyToManyDeleteSqlFormat, reference, lc, lc);
+
+					MapSqlParameterSource ps = new MapSqlParameterSource();
+					ps.addValue(lc, id);
+
+					getOperations().update(deleteSql, ps);
+
+					String insertSql = String.format(manyToManyInsertSqlFormat, reference, lc, ic, lc, ic);
+
+					Collection<?> collection = (Collection<?>) bw.getPropertyValue(field.getName());
+
+					if (!CollectionUtils.isEmpty(collection)) {
+						RelationalPersistentEntity<?> pe = null;
+						RelationalPersistentProperty ip = null;
+						List<SqlParameterSource> psList = new ArrayList<SqlParameterSource>();
+						for (Object item : collection) {
+							if (pe == null) {
+								pe = context.getRequiredPersistentEntity(item.getClass());
+								ip = pe.getIdProperty();
+							}
+
+							BeanWrapper ibw = new BeanWrapperImpl(item);
+							Object inverseId = ibw.getPropertyValue(ip.getName());
+
+							MapSqlParameterSource ips = new MapSqlParameterSource();
+							ips.addValue(lc, id);
+							ips.addValue(ic, inverseId);
+
+							psList.add(ips);
+						}
+
+						getOperations().batchUpdate(insertSql, psList.toArray(new SqlParameterSource[psList.size()]));
+					}
+
+				}
 			}
 		}
 
@@ -178,6 +200,7 @@ public class JdbcAggregatePlusTemplate extends JdbcAggregateTemplate
 				totalCount);
 	}
 
+	@SuppressWarnings("unchecked")
 	<T> Iterable<T> doFind(Query query, Class<?> entityClass, SqlIdentifier tableName, Class<T> returnType) {
 		if (CollectionUtils.isEmpty(query.getColumns())) {
 			RelationalPersistentEntity<?> relationalPersistentEntity = getRequiredEntity(entityClass);
@@ -201,7 +224,7 @@ public class JdbcAggregatePlusTemplate extends JdbcAggregateTemplate
 			tableName = q.getTable();
 		}
 
-		StatementMapper statementMapper = accessStrategy.getStatementMapper().forType(entityClass);
+		StatementMapper statementMapper = this.statementMapper.forType(entityClass);
 
 		StatementMapper.SelectSpec selectSpec = statementMapper //
 				.createSelect(tableName) //
@@ -226,12 +249,14 @@ public class JdbcAggregatePlusTemplate extends JdbcAggregateTemplate
 
 		PreparedOperation<?> operation = statementMapper.getMappedObject(selectSpec);
 
-		return accessStrategy.findAll(operation, returnType);
+		String sql = operation.get();
+		return getOperations().query(sql, operation.getSqlParameterSource(),
+				(RowMapper<T>) getEntityRowMapper(returnType));
 	}
 
 	<T> Long doCount(Query query, Class<?> entityClass, SqlIdentifier tableName) {
 		RelationalPersistentEntity<?> entity = getRequiredEntity(entityClass);
-		StatementMapper statementMapper = accessStrategy.getStatementMapper().forType(entityClass);
+		StatementMapper statementMapper = this.statementMapper.forType(entityClass);
 
 		if (query.getTable() != null) {
 			tableName = query.getTable();
@@ -251,7 +276,8 @@ public class JdbcAggregatePlusTemplate extends JdbcAggregateTemplate
 
 		PreparedOperation<?> operation = statementMapper.getMappedObject(selectSpec);
 
-		return accessStrategy.count(operation, entityClass);
+		String sql = operation.get();
+		return getOperations().queryForObject(sql, operation.getSqlParameterSource(), Long.class);
 	}
 
 	SqlIdentifier getTableName(Class<?> entityClass) {
@@ -260,6 +286,10 @@ public class JdbcAggregatePlusTemplate extends JdbcAggregateTemplate
 
 	private RelationalPersistentEntity<?> getRequiredEntity(Class<?> entityClass) {
 		return this.context.getRequiredPersistentEntity(entityClass);
+	}
+
+	private EntityRowMapper<?> getEntityRowMapper(Class<?> domainType) {
+		return new EntityRowMapper<>(getRequiredEntity(domainType), converter);
 	}
 
 	private <T> List<Expression> getSelectProjection(Table table, Query query, Class<T> returnType) {
