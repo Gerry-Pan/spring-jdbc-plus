@@ -124,6 +124,25 @@ public class JdbcAggregateTemplate implements JdbcAggregateOperations {
 		this.executor = new AggregateChangeExecutor(converter, accessStrategy);
 	}
 
+	public JdbcAggregateTemplate(ApplicationEventPublisher publisher, RelationalMappingContext context,
+			JdbcConverter converter, DataAccessStrategy dataAccessStrategy, NamedParameterJdbcOperations operations) {
+
+		Assert.notNull(publisher, "ApplicationEventPublisher must not be null!");
+		Assert.notNull(context, "RelationalMappingContext must not be null!");
+		Assert.notNull(converter, "RelationalConverter must not be null!");
+		Assert.notNull(dataAccessStrategy, "DataAccessStrategy must not be null!");
+
+		this.publisher = publisher;
+		this.context = context;
+		this.accessStrategy = dataAccessStrategy;
+		this.operations = operations;
+
+		this.jdbcEntityInsertWriter = new RelationalEntityInsertWriter(context);
+		this.jdbcEntityUpdateWriter = new RelationalEntityUpdateWriter(context);
+		this.jdbcEntityDeleteWriter = new RelationalEntityDeleteWriter(context);
+		this.executor = new AggregateChangeExecutor(converter, accessStrategy);
+	}
+
 	/**
 	 * @param entityCallbacks
 	 * @since 1.1

@@ -44,6 +44,7 @@ import org.springframework.data.relational.core.sql.Table;
 import org.springframework.data.relational.core.sql.render.RenderContext;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
@@ -67,7 +68,8 @@ public class JdbcAggregatePlusTemplate extends JdbcAggregateTemplate
 	private final JdbcConverter converter;
 
 	public JdbcAggregatePlusTemplate(ApplicationContext publisher, RelationalMappingContext context,
-			JdbcConverter converter, DataAccessStrategy dataAccessStrategy, Dialect dialect) {
+			JdbcConverter converter, DataAccessStrategy dataAccessStrategy, Dialect dialect,
+			NamedParameterJdbcOperations operations) {
 		super(publisher, context, converter, dataAccessStrategy);
 
 		RenderContextFactory factory = new RenderContextFactory(dialect);
@@ -78,6 +80,8 @@ public class JdbcAggregatePlusTemplate extends JdbcAggregateTemplate
 		this.projectionFactory = new SpelAwareProxyProjectionFactory();
 		this.updateMapper = new UpdateMapper(dialect, converter, context);
 		this.statementMapper = new DefaultStatementMapper(dialect, renderContext, this.updateMapper, context);
+
+		super.setOperations(operations);
 	}
 
 	@Override

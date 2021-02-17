@@ -16,7 +16,7 @@ public class JdbcConfiguration extends AbstractJdbcConfiguration {
 	public JdbcEntityTemplate jdbcAggregateTemplate(ApplicationContext applicationContext,
 			JdbcMappingContext mappingContext, JdbcConverter converter, DataAccessStrategy dataAccessStrategy) {
 		return new JdbcEntityTemplate(applicationContext, mappingContext, converter, dataAccessStrategy,
-				jdbcDialect(operations)).setOperations(operations);
+				jdbcDialect(operations), operations);
 	}
 
 }

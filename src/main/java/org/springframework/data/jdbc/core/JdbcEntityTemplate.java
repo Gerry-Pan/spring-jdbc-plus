@@ -16,13 +16,8 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 public class JdbcEntityTemplate extends JdbcAggregatePlusTemplate {
 
 	public JdbcEntityTemplate(ApplicationContext publisher, RelationalMappingContext context, JdbcConverter converter,
-			DataAccessStrategy dataAccessStrategy, Dialect dialect) {
-		super(publisher, context, converter, dataAccessStrategy, dialect);
-	}
-
-	public JdbcEntityTemplate setOperations(NamedParameterJdbcOperations operations) {
-		super.setOperations(operations);
-		return this;
+			DataAccessStrategy dataAccessStrategy, Dialect dialect, NamedParameterJdbcOperations operations) {
+		super(publisher, context, converter, dataAccessStrategy, dialect, operations);
 	}
 
 }
