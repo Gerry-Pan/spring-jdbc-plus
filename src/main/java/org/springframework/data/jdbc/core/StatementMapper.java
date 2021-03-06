@@ -12,6 +12,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.relational.core.query.Criteria;
 import org.springframework.data.relational.core.query.CriteriaDefinition;
+import org.springframework.data.relational.core.query.Query;
 import org.springframework.data.relational.core.sql.Expression;
 import org.springframework.data.relational.core.sql.SqlIdentifier;
 import org.springframework.data.relational.core.sql.Table;
@@ -23,6 +24,8 @@ public interface StatementMapper {
 	<T> TypedStatementMapper<T> forType(Class<T> type);
 
 	PreparedOperation<?> getMappedObject(SelectSpec selectSpec);
+	
+	PreparedOperation<?> getMappedObject(Query query);
 
 	default SelectSpec createSelect(String table) {
 		return SelectSpec.create(table);

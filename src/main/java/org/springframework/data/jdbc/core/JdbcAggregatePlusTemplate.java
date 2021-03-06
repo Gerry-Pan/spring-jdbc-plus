@@ -31,7 +31,9 @@ import org.springframework.data.projection.SpelAwareProxyProjectionFactory;
 import org.springframework.data.relational.core.dialect.Dialect;
 import org.springframework.data.relational.core.dialect.RenderContextFactory;
 import org.springframework.data.relational.core.mapping.ManyToMany;
+import org.springframework.data.relational.core.mapping.ManyToOne;
 import org.springframework.data.relational.core.mapping.NamingStrategy;
+import org.springframework.data.relational.core.mapping.OneToMany;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
 import org.springframework.data.relational.core.mapping.RelationalPersistentEntity;
 import org.springframework.data.relational.core.mapping.RelationalPersistentProperty;
@@ -214,6 +216,15 @@ public class JdbcAggregatePlusTemplate extends JdbcAggregateTemplate
 
 			while (iterator.hasNext()) {
 				RelationalPersistentProperty persistentProperty = iterator.next();
+
+				persistentProperty.isAnnotationPresent(ManyToOne.class);
+
+				if (persistentProperty.isEntity() || persistentProperty.isAnnotationPresent(ManyToOne.class)
+						|| persistentProperty.isAnnotationPresent(OneToMany.class)
+						|| persistentProperty.isAnnotationPresent(ManyToMany.class)) {
+					continue;
+				}
+
 				String property = persistentProperty.getName();
 
 				columns.add(property);

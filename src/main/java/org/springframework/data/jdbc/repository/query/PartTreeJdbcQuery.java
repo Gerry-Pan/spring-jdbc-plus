@@ -60,7 +60,7 @@ public class PartTreeJdbcQuery extends AbstractJdbcQuery {
 		this.operations = operations;
 
 		this.tree = new PartTree(queryMethod.getName(), queryMethod.getEntityInformation().getJavaType());
-		JdbcQueryCreator.validate(this.tree, this.parameters, this.converter.getMappingContext());
+		JdbcPlusQueryCreator.validate(this.tree, this.parameters, this.converter.getMappingContext());
 
 		ResultSetExtractor<Boolean> extractor = tree.isExistsProjection() ? (ResultSet::next) : null;
 
@@ -113,7 +113,7 @@ public class PartTreeJdbcQuery extends AbstractJdbcQuery {
 	protected ParametrizedQuery createQuery(RelationalParametersParameterAccessor accessor) {
 
 		RelationalEntityMetadata<?> entityMetadata = getQueryMethod().getEntityInformation();
-		JdbcQueryCreator queryCreator = new JdbcQueryCreator(context, tree, converter, dialect, entityMetadata,
+		JdbcQueryCreator queryCreator = new JdbcPlusQueryCreator(context, tree, converter, dialect, entityMetadata,
 				accessor);
 
 		return queryCreator.createQuery(getDynamicSort(accessor));

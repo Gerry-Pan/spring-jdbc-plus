@@ -89,6 +89,14 @@ public interface UserDao extends PagingAndSortingRepository<User, Long> {
 
 	public List<User> findByUsernameLike(String username);
 
+	public List<User> findByDepartmentNameLike(String name);
+
+	public List<User> findByRolesNameLike(String name);
+
+	public Page<User> findByDepartmentNameLike(String name, Pageable pageable);
+
+	public Page<User> findByRolesNameLike(String name, Pageable pageable);
+
 	public Page<User> findByUsernameLike(String username, Pageable pageable);
 
 	public Slice<User> searchByUsernameLike(String username, Pageable pageable);
@@ -116,7 +124,7 @@ public interface UserDao extends PagingAndSortingRepository<User, Long> {
 	public List<User> fetchByUsername(String table, String username);
 
 	@Query(value = "select * from #{#table} t where 1 = 1 and username like :username")
-	public List<User> fetchByUsername1(String table, String username);
+	public List<User> searchByUsername(String table, String username);
 
 	// 0 is parameter index of method
 	@Query(value = "select * from #{#entityName} t where 1 = 1 #{[0]?.username != null?'and username like :#{[0].username}':''} #{[0]?.departmentId != null?'and department_id = :#{[0].departmentId}':''}")

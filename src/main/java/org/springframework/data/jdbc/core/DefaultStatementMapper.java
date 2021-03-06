@@ -10,6 +10,7 @@ import java.util.Calendar;
 import java.util.Currency;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -26,7 +27,9 @@ import org.springframework.data.relational.core.mapping.NamingStrategy;
 import org.springframework.data.relational.core.mapping.OneToMany;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
 import org.springframework.data.relational.core.mapping.RelationalPersistentEntity;
+import org.springframework.data.relational.core.mapping.RelationalPersistentProperty;
 import org.springframework.data.relational.core.query.CriteriaDefinition;
+import org.springframework.data.relational.core.query.Query;
 import org.springframework.data.relational.core.sql.Column;
 import org.springframework.data.relational.core.sql.Delete;
 import org.springframework.data.relational.core.sql.Expression;
@@ -67,6 +70,8 @@ public class DefaultStatementMapper implements StatementMapper {
 
 	private final RenderContext renderContext;
 
+	private final NamingStrategy namingStrategy;
+
 	private final RelationalMappingContext mappingContext;
 
 	public DefaultStatementMapper(Dialect dialect, RenderContext renderContext, UpdateMapper updateMapper,
@@ -75,6 +80,7 @@ public class DefaultStatementMapper implements StatementMapper {
 		this.updateMapper = updateMapper;
 		this.renderContext = renderContext;
 		this.mappingContext = mappingContext;
+		this.namingStrategy = this.mappingContext.getNamingStrategy();
 	}
 
 	@SuppressWarnings("unchecked")
@@ -89,6 +95,63 @@ public class DefaultStatementMapper implements StatementMapper {
 	@Override
 	public PreparedOperation<?> getMappedObject(SelectSpec selectSpec) {
 		return (PreparedOperation<?>) getMappedObject(selectSpec, null);
+	}
+
+	@Override
+	public PreparedOperation<?> getMappedObject(Query query) {
+		return (PreparedOperation<?>) getMappedObject(query, null);
+	}
+
+	private PreparedOperation<?> getMappedObject(Query query, @Nullable RelationalPersistentEntity<?> entity) {
+		Table table = Table.create(entity.getTableName());
+		AtomicInteger atomicInteger = new AtomicInteger();
+		MapSqlParameterSource sqlParameterSource = new MapSqlParameterSource();
+
+		SelectBuilder.SelectAndFrom selectAndFrom = StatementBuilder.select(getSelectList(table, entity));
+
+		SelectBuilder.SelectFromAndJoin selectBuilder = selectAndFrom.from(table);
+
+		CriteriaDefinition criteria = query.getCriteria().orElse(null);
+
+		if (criteria != null && !criteria.isEmpty()) {
+			Map<String, Table> tableMap = new HashMap<String, Table>();
+			Map<String, Class<?>> clazzMap = new HashMap<String, Class<?>>();
+
+			if (criteria.isGroup()) {
+				CriteriaDefinition previous = criteria.getPrevious();
+
+				if (previous != null) {
+					unroll(selectBuilder, previous, table, entity, tableMap, clazzMap);
+				}
+
+				unrollGroup(selectBuilder, criteria.getGroup(), table, entity, tableMap, clazzMap);
+			} else {
+				unroll(selectBuilder, criteria, table, entity, tableMap, clazzMap);
+			}
+
+			Pair<Map<String, Table>, Map<String, Class<?>>> pair = Pair.of(tableMap, clazzMap);
+
+			BoundCondition mappedObject = this.updateMapper.getMappedObject(criteria, table, entity, sqlParameterSource,
+					atomicInteger, pair);
+
+			selectBuilder.where(mappedObject.getCondition());
+		}
+
+		if (query.isSorted()) {
+			List<OrderByField> exchangeSort = this.updateMapper.getMappedSort(table, query.getSort(), entity);
+			selectBuilder.orderBy(exchangeSort);
+		}
+
+		if (query.getLimit() > 0) {
+			selectBuilder.limit(query.getLimit());
+		}
+
+		if (query.getOffset() > 0) {
+			selectBuilder.offset(query.getOffset());
+		}
+
+		Select select = selectBuilder.build();
+		return new DefaultPreparedOperation<Select>(select, sqlParameterSource, this.renderContext);
 	}
 
 	private PreparedOperation<?> getMappedObject(SelectSpec selectSpec,
@@ -428,6 +491,28 @@ public class DefaultStatementMapper implements StatementMapper {
 		return mapped;
 	}
 
+	protected List<Expression> getSelectList(Table table, @Nullable RelationalPersistentEntity<?> entity) {
+		List<Expression> columnExpressions = new ArrayList<>();
+
+		Iterator<RelationalPersistentProperty> iterator = entity.iterator();
+
+		while (iterator.hasNext()) {
+			RelationalPersistentProperty persistentProperty = iterator.next();
+
+			if (persistentProperty.isEntity() || persistentProperty.isAnnotationPresent(ManyToOne.class)
+					|| persistentProperty.isAnnotationPresent(OneToMany.class)
+					|| persistentProperty.isAnnotationPresent(ManyToMany.class)) {
+				continue;
+			}
+
+			String property = persistentProperty.getName();
+
+			columnExpressions.add(Column.create(namingStrategy.getColumnName(property), table));
+		}
+
+		return columnExpressions;
+	}
+
 	protected String toSql(SqlIdentifier identifier) {
 
 		Assert.notNull(identifier, "SqlIdentifier must not be null");
@@ -458,6 +543,10 @@ public class DefaultStatementMapper implements StatementMapper {
 	}
 
 	public boolean isPrimitive(Class<?> clazz) {
+		if (clazz.isEnum()) {
+			return true;
+		}
+
 		boolean flag = false;
 
 		if (clazz.isPrimitive()) {
@@ -565,6 +654,11 @@ public class DefaultStatementMapper implements StatementMapper {
 		@Override
 		public PreparedOperation<?> getMappedObject(SelectSpec selectSpec) {
 			return DefaultStatementMapper.this.getMappedObject(selectSpec, this.entity);
+		}
+
+		@Override
+		public PreparedOperation<?> getMappedObject(Query query) {
+			return DefaultStatementMapper.this.getMappedObject(query, this.entity);
 		}
 
 		/*

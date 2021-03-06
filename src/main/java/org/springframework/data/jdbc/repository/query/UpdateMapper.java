@@ -44,7 +44,7 @@ public class UpdateMapper extends QueryMapper {
 	private final JdbcConverter converter;
 
 	private final RelationalMappingContext mappingContext;
-
+	
 	public UpdateMapper(Dialect dialect, JdbcConverter converter, RelationalMappingContext mappingContext) {
 		super(dialect, converter);
 		this.dialect = dialect;
