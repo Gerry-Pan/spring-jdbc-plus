@@ -31,7 +31,7 @@ import org.springframework.data.repository.query.parser.PartTree;
 import org.springframework.lang.Nullable;
 import org.springframework.util.ReflectionUtils;
 
-public class JdbcPlusQueryCreator extends JdbcQueryCreator {
+public class JdbcPlusQueryCreator extends RelationalQueryCreator<ParametrizedQuery> {
 
 	private final UpdateMapper queryMapper;
 	private final StatementMapper statementMapper;
@@ -41,7 +41,7 @@ public class JdbcPlusQueryCreator extends JdbcQueryCreator {
 
 	JdbcPlusQueryCreator(RelationalMappingContext context, PartTree tree, JdbcConverter converter, Dialect dialect,
 			RelationalEntityMetadata<?> entityMetadata, RelationalParameterAccessor accessor) {
-		super(context, tree, converter, dialect, entityMetadata, accessor);
+		super(tree, accessor);
 
 		this.accessor = accessor;
 		this.entityMetadata = entityMetadata;
@@ -55,7 +55,7 @@ public class JdbcPlusQueryCreator extends JdbcQueryCreator {
 
 	protected ParametrizedQuery complete(@Nullable Criteria criteria, Sort sort) {
 		RelationalPersistentEntity<?> entity = entityMetadata.getTableEntity();
-		Query query = Query.query(criteria).sort(sort).with(accessor.getPageable());
+		Query query = Query.query(criteria).with(accessor.getPageable()).sort(sort);
 		StatementMapper statementMapper = this.statementMapper.forType(entity.getType());
 		PreparedOperation<?> operation = statementMapper.getMappedObject(query);
 

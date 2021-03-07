@@ -95,6 +95,10 @@ public interface UserDao extends PagingAndSortingRepository<User, Long> {
 
 	public Page<User> findByDepartmentNameLike(String name, Pageable pageable);
 
+	public Page<User> findByDepartmentNameLikeOrderByUsername(String name, Pageable pageable);
+
+	public Page<User> findByDepartmentNameLikeOrderByDepartmentName(String name, Pageable pageable);
+
 	public Page<User> findByRolesNameLike(String name, Pageable pageable);
 
 	public Page<User> findByUsernameLike(String username, Pageable pageable);

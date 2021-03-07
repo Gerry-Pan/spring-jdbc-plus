@@ -113,7 +113,7 @@ public class PartTreeJdbcQuery extends AbstractJdbcQuery {
 	protected ParametrizedQuery createQuery(RelationalParametersParameterAccessor accessor) {
 
 		RelationalEntityMetadata<?> entityMetadata = getQueryMethod().getEntityInformation();
-		JdbcQueryCreator queryCreator = new JdbcPlusQueryCreator(context, tree, converter, dialect, entityMetadata,
+		JdbcPlusQueryCreator queryCreator = new JdbcPlusQueryCreator(context, tree, converter, dialect, entityMetadata,
 				accessor);
 
 		return queryCreator.createQuery(getDynamicSort(accessor));

@@ -1,23 +1,12 @@
 package org.springframework.data.jdbc.core;
 
-import java.io.Serializable;
-import java.lang.reflect.Field;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Currency;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.TimeZone;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.springframework.data.jdbc.exception.SelectBuildException;
 import org.springframework.data.jdbc.repository.query.BoundCondition;
 import org.springframework.data.jdbc.repository.query.UpdateMapper;
 import org.springframework.data.relational.core.dialect.Dialect;
@@ -48,8 +37,6 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
-import org.springframework.util.ReflectionUtils;
-import org.springframework.util.StringUtils;
 
 /**
  * 
@@ -57,12 +44,6 @@ import org.springframework.util.StringUtils;
  *
  */
 public class DefaultStatementMapper implements StatementMapper {
-
-	private final Class<?>[] clazzs = new Class<?>[] { Long.class, Integer.class, Double.class, Float.class, Byte.class,
-			Short.class, Boolean.class, Character.class, String.class, byte[].class, BigDecimal.class, Byte[].class,
-			Date.class, java.sql.Date.class, java.sql.Time.class, java.sql.Timestamp.class, Calendar.class,
-			java.sql.Clob.class, java.sql.Blob.class, Serializable.class, Locale.class, TimeZone.class, Currency.class,
-			Class.class };
 
 	private final Dialect dialect;
 
@@ -113,10 +94,11 @@ public class DefaultStatementMapper implements StatementMapper {
 
 		CriteriaDefinition criteria = query.getCriteria().orElse(null);
 
-		if (criteria != null && !criteria.isEmpty()) {
-			Map<String, Table> tableMap = new HashMap<String, Table>();
-			Map<String, Class<?>> clazzMap = new HashMap<String, Class<?>>();
+		Map<String, Table> tableMap = new HashMap<String, Table>();
+		Map<String, Class<?>> clazzMap = new HashMap<String, Class<?>>();
+		Pair<Map<String, Table>, Map<String, Class<?>>> pair = Pair.of(tableMap, clazzMap);
 
+		if (criteria != null && !criteria.isEmpty()) {
 			if (criteria.isGroup()) {
 				CriteriaDefinition previous = criteria.getPrevious();
 
@@ -129,8 +111,6 @@ public class DefaultStatementMapper implements StatementMapper {
 				unroll(selectBuilder, criteria, table, entity, tableMap, clazzMap);
 			}
 
-			Pair<Map<String, Table>, Map<String, Class<?>>> pair = Pair.of(tableMap, clazzMap);
-
 			BoundCondition mappedObject = this.updateMapper.getMappedObject(criteria, table, entity, sqlParameterSource,
 					atomicInteger, pair);
 
@@ -138,7 +118,8 @@ public class DefaultStatementMapper implements StatementMapper {
 		}
 
 		if (query.isSorted()) {
-			List<OrderByField> exchangeSort = this.updateMapper.getMappedSort(table, query.getSort(), entity);
+			List<OrderByField> exchangeSort = this.updateMapper.getMappedSort(selectBuilder, table, query.getSort(),
+					entity, pair);
 			selectBuilder.orderBy(exchangeSort);
 		}
 
@@ -169,11 +150,11 @@ public class DefaultStatementMapper implements StatementMapper {
 		SelectBuilder.SelectFromAndJoin selectBuilder = selectAndFrom.from(table);
 
 		CriteriaDefinition criteria = selectSpec.getCriteria();
+		Map<String, Table> tableMap = new HashMap<String, Table>();
+		Map<String, Class<?>> clazzMap = new HashMap<String, Class<?>>();
+		Pair<Map<String, Table>, Map<String, Class<?>>> pair = Pair.of(tableMap, clazzMap);
 
 		if (criteria != null && !criteria.isEmpty()) {
-			Map<String, Table> tableMap = new HashMap<String, Table>();
-			Map<String, Class<?>> clazzMap = new HashMap<String, Class<?>>();
-
 			if (criteria.isGroup()) {
 				CriteriaDefinition previous = criteria.getPrevious();
 
@@ -186,8 +167,6 @@ public class DefaultStatementMapper implements StatementMapper {
 				unroll(selectBuilder, criteria, table, entity, tableMap, clazzMap);
 			}
 
-			Pair<Map<String, Table>, Map<String, Class<?>>> pair = Pair.of(tableMap, clazzMap);
-
 			BoundCondition mappedObject = this.updateMapper.getMappedObject(criteria, table, entity, sqlParameterSource,
 					atomicInteger, pair);
 
@@ -195,7 +174,8 @@ public class DefaultStatementMapper implements StatementMapper {
 		}
 
 		if (selectSpec.getSort().isSorted()) {
-			List<OrderByField> sort = this.updateMapper.getMappedSort(table, selectSpec.getSort(), entity);
+			List<OrderByField> sort = this.updateMapper.getMappedSort(selectBuilder, table, selectSpec.getSort(),
+					entity, pair);
 			selectBuilder.orderBy(sort);
 		}
 
@@ -215,205 +195,7 @@ public class DefaultStatementMapper implements StatementMapper {
 			@Nullable RelationalPersistentEntity<?> entity, Map<String, Table> tableMap,
 			Map<String, Class<?>> clazzMap) {
 		String column = criteria.getColumn().toString();
-
-		if (column.indexOf(".") != -1) {
-			String[] names = column.split("\\.");
-			NamingStrategy namingStrategy = mappingContext.getNamingStrategy();
-
-			Table left = table;
-			RelationalPersistentEntity<?> leftEntity = entity;
-
-			for (int i = 0; i < names.length - 1; i++) {
-				String name = names[i];
-				Field field = ReflectionUtils.findField(leftEntity.getType(), name);
-				Class<?> clazz = field.getType();
-
-				if (isPrimitive(clazz)) {
-					throw new SelectBuildException("Doesn't support Primitive class for " + name + " in " + column);
-				}
-
-				OneToMany oneToMany = null;
-				ManyToOne manyToOne = null;
-				ManyToMany manyToMany = null;
-
-				if (isInterface(clazz, Iterable.class.getName())) {
-					oneToMany = field.getAnnotation(OneToMany.class);
-					manyToMany = field.getAnnotation(ManyToMany.class);
-
-					if (oneToMany == null && manyToMany == null) {
-						throw new SelectBuildException(
-								"Not found OneToMany or ManyToMany for " + name + " in " + column);
-					}
-
-					if (oneToMany != null && manyToMany != null) {
-						throw new SelectBuildException(
-								"Either OneToMany or ManyToMany can be used for" + name + " in " + column);
-					}
-
-					ParameterizedType parameterizedType = (ParameterizedType) field.getGenericType();
-
-					Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
-
-					if (actualTypeArguments == null || actualTypeArguments.length == 0) {
-						throw new SelectBuildException("Has no ParameterizedType for " + name + " in " + column);
-					}
-
-					if (actualTypeArguments.length > 1) {
-						throw new SelectBuildException("Too many ParameterizedType");
-					}
-
-					clazz = (Class<?>) actualTypeArguments[0];
-				} else {
-					manyToOne = field.getAnnotation(ManyToOne.class);
-
-					if (manyToOne == null) {
-						throw new SelectBuildException("Not found ManyToOne for " + name + " in " + column);
-					}
-				}
-
-				if (oneToMany != null && manyToOne != null) {
-					throw new SelectBuildException(
-							"Either OneToMany or ManyToOne can be used for" + name + " in " + column);
-				}
-
-				if (manyToMany != null && manyToOne != null) {
-					throw new SelectBuildException(
-							"Either ManyToMany or ManyToOne can be used for" + name + " in " + column);
-				}
-
-				Table right = null;
-				RelationalPersistentEntity<?> rightEntity = mappingContext.getRequiredPersistentEntity(clazz);
-
-				if (rightEntity == null) {
-					throw new SelectBuildException("Has no PersistentEntity for " + name + " in " + column);
-				}
-
-				StringBuilder sb = new StringBuilder();
-
-				for (int j = 0; j <= i; j++) {
-					sb.append(names[j]);
-
-					if (j < i) {
-						sb.append(".");
-					}
-				}
-
-				String tableName = sb.toString();
-
-				if (tableMap.containsKey(tableName)) {
-					right = tableMap.get(tableName);
-				} else {
-					right = Table.create(rightEntity.getTableName());
-
-					if (manyToOne != null) {
-						String property = manyToOne.property();
-						String col = namingStrategy.getColumnName(property);
-						String idProperty = rightEntity.getIdProperty().getName();
-
-						selectBuilder.leftOuterJoin(right).on(Column.create(SqlIdentifier.quoted(col), left))
-								.equals(Column.create(SqlIdentifier.quoted(idProperty), right)).build();
-					}
-
-					if (oneToMany != null) {
-						String mappedBy = oneToMany.mappedBy();
-						String idProperty = leftEntity.getIdProperty().getName();
-
-						Field rightField = ReflectionUtils.findField(clazz, mappedBy);
-						ManyToOne mto = rightField.getAnnotation(ManyToOne.class);
-
-						String col = null;
-
-						if (mto == null) {
-							String property = mappedBy.concat("Id");
-
-							col = namingStrategy.getColumnName(property);
-						} else {
-							String property = mto.property();
-
-							col = namingStrategy.getColumnName(property);
-						}
-
-						selectBuilder.leftOuterJoin(right).on(Column.create(SqlIdentifier.quoted(idProperty), left))
-								.equals(Column.create(SqlIdentifier.quoted(col), right)).build();
-					}
-
-					if (manyToMany != null) {
-						boolean f = false;
-						String mappedBy = manyToMany.mappedBy();
-						String reference = manyToMany.table();
-						String localColumn = manyToMany.column();
-						String inverseColumn = manyToMany.inverseColumn();
-
-						if (StringUtils.hasText(reference)) {
-							if (!StringUtils.hasText(localColumn)) {
-								throw new SelectBuildException(
-										"Not found localColumn in ManyToMany for " + name + " in " + column);
-							}
-
-							if (!StringUtils.hasText(inverseColumn)) {
-								throw new SelectBuildException(
-										"Not found inverseColumn in ManyToMany for " + name + " in " + column);
-							}
-
-							Table middle = Table.create(reference);
-
-							String leftIdProperty = leftEntity.getIdProperty().getName();
-							String rightIdProperty = rightEntity.getIdProperty().getName();
-
-							String lc = namingStrategy.getColumnName(localColumn);
-							String ic = namingStrategy.getColumnName(inverseColumn);
-
-							selectBuilder.leftOuterJoin(middle)
-									.on(Column.create(SqlIdentifier.quoted(leftIdProperty), left))
-									.equals(Column.create(SqlIdentifier.quoted(lc), middle)).build();
-
-							selectBuilder.leftOuterJoin(right).on(Column.create(SqlIdentifier.quoted(ic), middle))
-									.equals(Column.create(SqlIdentifier.quoted(rightIdProperty), right)).build();
-
-							f = true;
-						}
-
-						if (!f && StringUtils.hasText(mappedBy)) {
-							Field rightField = ReflectionUtils.findField(clazz, mappedBy);
-							ManyToMany mtm = rightField.getAnnotation(ManyToMany.class);
-
-							reference = mtm.table();
-							localColumn = mtm.column();
-							inverseColumn = mtm.inverseColumn();
-
-							Table middle = Table.create(reference);
-
-							String leftIdProperty = leftEntity.getIdProperty().getName();
-							String rightIdProperty = rightEntity.getIdProperty().getName();
-
-							String lc = namingStrategy.getColumnName(localColumn);
-							String ic = namingStrategy.getColumnName(inverseColumn);
-
-							selectBuilder.leftOuterJoin(middle)
-									.on(Column.create(SqlIdentifier.quoted(leftIdProperty), left))
-									.equals(Column.create(SqlIdentifier.quoted(ic), middle)).build();
-
-							selectBuilder.leftOuterJoin(right).on(Column.create(SqlIdentifier.quoted(lc), middle))
-									.equals(Column.create(SqlIdentifier.quoted(rightIdProperty), right)).build();
-
-							f = true;
-						}
-
-						if (!f) {
-							throw new SelectBuildException(
-									"Must set table or mappedBy in ManyToMany for " + name + " in " + column);
-						}
-					}
-
-					tableMap.put(tableName, right);
-				}
-
-				clazzMap.put(tableName, clazz);
-
-				left = right;
-				leftEntity = rightEntity;
-			}
-		}
+		updateMapper.resolveColumn(selectBuilder, column, table, entity, tableMap, clazzMap);
 	}
 
 	private Pair<Map<String, Table>, Map<String, Class<?>>> unroll(SelectBuilder.SelectFromAndJoin selectBuilder,
@@ -518,49 +300,6 @@ public class DefaultStatementMapper implements StatementMapper {
 		Assert.notNull(identifier, "SqlIdentifier must not be null");
 
 		return identifier.toSql(this.dialect.getIdentifierProcessing());
-	}
-
-	private boolean isInterface(Class<?> c, String szInterface) {
-		Class<?>[] face = c.getInterfaces();
-		for (int i = 0, j = face.length; i < j; i++) {
-			if (face[i].getName().equals(szInterface)) {
-				return true;
-			} else {
-				Class<?>[] face1 = face[i].getInterfaces();
-				for (int x = 0; x < face1.length; x++) {
-					if (face1[x].getName().equals(szInterface)) {
-						return true;
-					} else if (isInterface(face1[x], szInterface)) {
-						return true;
-					}
-				}
-			}
-		}
-		if (null != c.getSuperclass()) {
-			return isInterface(c.getSuperclass(), szInterface);
-		}
-		return false;
-	}
-
-	public boolean isPrimitive(Class<?> clazz) {
-		if (clazz.isEnum()) {
-			return true;
-		}
-
-		boolean flag = false;
-
-		if (clazz.isPrimitive()) {
-			return true;
-		}
-
-		for (Class<?> _clazz : this.clazzs) {
-			if (clazz.isAssignableFrom(_clazz)) {
-				flag = true;
-				break;
-			}
-		}
-
-		return flag;
 	}
 
 	public RenderContext getRenderContext() {
