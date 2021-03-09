@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jdbc.repository.query.DefaultParametrizedQuery;
 import org.springframework.data.relational.core.query.Criteria;
 import org.springframework.data.relational.core.query.CriteriaDefinition;
 import org.springframework.data.relational.core.query.Query;
@@ -23,9 +24,9 @@ public interface StatementMapper {
 
 	<T> TypedStatementMapper<T> forType(Class<T> type);
 
-	PreparedOperation<?> getMappedObject(SelectSpec selectSpec);
+	DefaultParametrizedQuery getMappedObject(SelectSpec selectSpec);
 	
-	PreparedOperation<?> getMappedObject(Query query);
+	DefaultParametrizedQuery getMappedObject(Query query);
 
 	default SelectSpec createSelect(String table) {
 		return SelectSpec.create(table);

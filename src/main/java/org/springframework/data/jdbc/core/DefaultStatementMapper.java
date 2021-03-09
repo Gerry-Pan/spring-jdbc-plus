@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.data.jdbc.repository.query.BoundCondition;
+import org.springframework.data.jdbc.repository.query.DefaultParametrizedQuery;
 import org.springframework.data.jdbc.repository.query.UpdateMapper;
 import org.springframework.data.relational.core.dialect.Dialect;
 import org.springframework.data.relational.core.mapping.ManyToMany;
@@ -20,21 +21,17 @@ import org.springframework.data.relational.core.mapping.RelationalPersistentProp
 import org.springframework.data.relational.core.query.CriteriaDefinition;
 import org.springframework.data.relational.core.query.Query;
 import org.springframework.data.relational.core.sql.Column;
-import org.springframework.data.relational.core.sql.Delete;
 import org.springframework.data.relational.core.sql.Expression;
-import org.springframework.data.relational.core.sql.Insert;
 import org.springframework.data.relational.core.sql.OrderByField;
 import org.springframework.data.relational.core.sql.Select;
 import org.springframework.data.relational.core.sql.SelectBuilder;
 import org.springframework.data.relational.core.sql.SqlIdentifier;
 import org.springframework.data.relational.core.sql.StatementBuilder;
 import org.springframework.data.relational.core.sql.Table;
-import org.springframework.data.relational.core.sql.Update;
 import org.springframework.data.relational.core.sql.render.RenderContext;
 import org.springframework.data.relational.core.sql.render.SqlRenderer;
 import org.springframework.data.util.Pair;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
@@ -74,16 +71,16 @@ public class DefaultStatementMapper implements StatementMapper {
 	}
 
 	@Override
-	public PreparedOperation<?> getMappedObject(SelectSpec selectSpec) {
-		return (PreparedOperation<?>) getMappedObject(selectSpec, null);
+	public DefaultParametrizedQuery getMappedObject(SelectSpec selectSpec) {
+		return getMappedObject(selectSpec, null);
 	}
 
 	@Override
-	public PreparedOperation<?> getMappedObject(Query query) {
-		return (PreparedOperation<?>) getMappedObject(query, null);
+	public DefaultParametrizedQuery getMappedObject(Query query) {
+		return getMappedObject(query, null);
 	}
 
-	private PreparedOperation<?> getMappedObject(Query query, @Nullable RelationalPersistentEntity<?> entity) {
+	private DefaultParametrizedQuery getMappedObject(Query query, @Nullable RelationalPersistentEntity<?> entity) {
 		Table table = Table.create(entity.getTableName());
 		AtomicInteger atomicInteger = new AtomicInteger();
 		MapSqlParameterSource sqlParameterSource = new MapSqlParameterSource();
@@ -132,11 +129,12 @@ public class DefaultStatementMapper implements StatementMapper {
 		}
 
 		Select select = selectBuilder.build();
-		return new DefaultPreparedOperation<Select>(select, sqlParameterSource, this.renderContext);
+		SqlRenderer sqlRenderer = SqlRenderer.create(this.renderContext);
+
+		return new DefaultParametrizedQuery(sqlRenderer.render(select), sqlParameterSource);
 	}
 
-	private PreparedOperation<?> getMappedObject(SelectSpec selectSpec,
-			@Nullable RelationalPersistentEntity<?> entity) {
+	private DefaultParametrizedQuery getMappedObject(SelectSpec selectSpec, @Nullable RelationalPersistentEntity<?> entity) {
 
 		Table table = selectSpec.getTable();
 		AtomicInteger atomicInteger = new AtomicInteger();
@@ -188,7 +186,9 @@ public class DefaultStatementMapper implements StatementMapper {
 		}
 
 		Select select = selectBuilder.build();
-		return new DefaultPreparedOperation<>(select, sqlParameterSource, this.renderContext);
+		SqlRenderer sqlRenderer = SqlRenderer.create(this.renderContext);
+
+		return new DefaultParametrizedQuery(sqlRenderer.render(select), sqlParameterSource);
 	}
 
 	private void resolve(SelectBuilder.SelectFromAndJoin selectBuilder, CriteriaDefinition criteria, Table table,
@@ -306,63 +306,6 @@ public class DefaultStatementMapper implements StatementMapper {
 		return renderContext;
 	}
 
-	static class DefaultPreparedOperation<T> implements PreparedOperation<T> {
-
-		private final T source;
-		private final RenderContext renderContext;
-		private final SqlParameterSource sqlParameterSource;
-
-		DefaultPreparedOperation(T source, SqlParameterSource sqlParameterSource, RenderContext renderContext) {
-			this.source = source;
-			this.renderContext = renderContext;
-			this.sqlParameterSource = sqlParameterSource;
-		}
-
-		/*
-		 * (non-Javadoc)
-		 * 
-		 * @see org.springframework.data.r2dbc.function.PreparedOperation#getSource()
-		 */
-		@Override
-		public T getSource() {
-			return this.source;
-		}
-
-		@Override
-		public SqlParameterSource getSqlParameterSource() {
-			return this.sqlParameterSource;
-		}
-
-		/*
-		 * (non-Javadoc)
-		 * 
-		 * @see org.springframework.data.r2dbc.function.QueryOperation#toQuery()
-		 */
-		@Override
-		public String toQuery() {
-
-			SqlRenderer sqlRenderer = SqlRenderer.create(this.renderContext);
-
-			if (this.source instanceof Select) {
-				return sqlRenderer.render((Select) this.source);
-			}
-
-			if (this.source instanceof Insert) {
-				return sqlRenderer.render((Insert) this.source);
-			}
-
-			if (this.source instanceof Update) {
-				return sqlRenderer.render((Update) this.source);
-			}
-
-			if (this.source instanceof Delete) {
-				return sqlRenderer.render((Delete) this.source);
-			}
-
-			throw new IllegalStateException("Cannot render " + this.getSource());
-		}
-	}
-
 	class DefaultTypedStatementMapper<T> implements TypedStatementMapper<T> {
 
 		final RelationalPersistentEntity<T> entity;
@@ -391,12 +334,12 @@ public class DefaultStatementMapper implements StatementMapper {
 		 * springframework.data.r2dbc.function.StatementMapper.SelectSpec)
 		 */
 		@Override
-		public PreparedOperation<?> getMappedObject(SelectSpec selectSpec) {
+		public DefaultParametrizedQuery getMappedObject(SelectSpec selectSpec) {
 			return DefaultStatementMapper.this.getMappedObject(selectSpec, this.entity);
 		}
 
 		@Override
-		public PreparedOperation<?> getMappedObject(Query query) {
+		public DefaultParametrizedQuery getMappedObject(Query query) {
 			return DefaultStatementMapper.this.getMappedObject(query, this.entity);
 		}
 

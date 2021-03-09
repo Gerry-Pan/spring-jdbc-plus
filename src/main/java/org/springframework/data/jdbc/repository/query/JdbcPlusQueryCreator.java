@@ -4,7 +4,6 @@ import java.lang.reflect.Field;
 
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jdbc.core.DefaultStatementMapper;
-import org.springframework.data.jdbc.core.PreparedOperation;
 import org.springframework.data.jdbc.core.StatementMapper;
 import org.springframework.data.jdbc.core.convert.JdbcConverter;
 import org.springframework.data.mapping.PersistentPropertyPath;
@@ -57,11 +56,8 @@ public class JdbcPlusQueryCreator extends RelationalQueryCreator<ParametrizedQue
 		RelationalPersistentEntity<?> entity = entityMetadata.getTableEntity();
 		Query query = Query.query(criteria).with(accessor.getPageable()).sort(sort);
 		StatementMapper statementMapper = this.statementMapper.forType(entity.getType());
-		PreparedOperation<?> operation = statementMapper.getMappedObject(query);
 
-		String sql = operation.get();
-
-		return new ParametrizedQuery(sql, operation.getSqlParameterSource());
+		return statementMapper.getMappedObject(query);
 	}
 
 	static void validate(PartTree tree, Parameters<?, ?> parameters,

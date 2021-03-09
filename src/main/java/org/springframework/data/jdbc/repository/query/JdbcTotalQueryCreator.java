@@ -4,7 +4,6 @@ import java.util.Optional;
 
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jdbc.core.DefaultStatementMapper;
-import org.springframework.data.jdbc.core.PreparedOperation;
 import org.springframework.data.jdbc.core.StatementMapper;
 import org.springframework.data.jdbc.core.convert.JdbcConverter;
 import org.springframework.data.mapping.PersistentPropertyPath;
@@ -144,11 +143,7 @@ public class JdbcTotalQueryCreator extends JdbcQueryCreator {
 			selectSpec = criteriaOptional.map(selectSpec::withCriteria).orElse(selectSpec);
 		}
 
-		PreparedOperation<?> operation = statementMapper.getMappedObject(selectSpec);
-
-		String sql = operation.get();
-
-		return new ParametrizedQuery(sql, operation.getSqlParameterSource());
+		return statementMapper.getMappedObject(selectSpec);
 	}
 
 }

@@ -25,6 +25,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jdbc.core.convert.DataAccessStrategy;
 import org.springframework.data.jdbc.core.convert.EntityRowMapper;
 import org.springframework.data.jdbc.core.convert.JdbcConverter;
+import org.springframework.data.jdbc.repository.query.DefaultParametrizedQuery;
 import org.springframework.data.jdbc.repository.query.UpdateMapper;
 import org.springframework.data.projection.ProjectionInformation;
 import org.springframework.data.projection.SpelAwareProxyProjectionFactory;
@@ -262,10 +263,10 @@ public class JdbcAggregatePlusTemplate extends JdbcAggregateTemplate
 			selectSpec = criteria.map(selectSpec::withCriteria).orElse(selectSpec);
 		}
 
-		PreparedOperation<?> operation = statementMapper.getMappedObject(selectSpec);
+		DefaultParametrizedQuery operation = statementMapper.getMappedObject(selectSpec);
 
-		String sql = operation.get();
-		return getOperations().query(sql, operation.getSqlParameterSource(),
+		String sql = operation.getQuery();
+		return getOperations().query(sql, operation.getParameterSource(),
 				(RowMapper<T>) getEntityRowMapper(returnType));
 	}
 
@@ -289,10 +290,10 @@ public class JdbcAggregatePlusTemplate extends JdbcAggregateTemplate
 			selectSpec = criteria.map(selectSpec::withCriteria).orElse(selectSpec);
 		}
 
-		PreparedOperation<?> operation = statementMapper.getMappedObject(selectSpec);
+		DefaultParametrizedQuery operation = statementMapper.getMappedObject(selectSpec);
 
-		String sql = operation.get();
-		return getOperations().queryForObject(sql, operation.getSqlParameterSource(), Long.class);
+		String sql = operation.getQuery();
+		return getOperations().queryForObject(sql, operation.getParameterSource(), Long.class);
 	}
 
 	SqlIdentifier getTableName(Class<?> entityClass) {
