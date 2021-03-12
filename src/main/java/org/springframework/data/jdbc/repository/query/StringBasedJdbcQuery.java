@@ -11,6 +11,7 @@ import java.sql.JDBCType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
@@ -25,7 +26,13 @@ import org.springframework.data.jdbc.core.convert.JdbcColumnTypes;
 import org.springframework.data.jdbc.core.convert.JdbcConverter;
 import org.springframework.data.jdbc.core.convert.JdbcValue;
 import org.springframework.data.jdbc.support.JdbcUtil;
+import org.springframework.data.relational.core.mapping.ManyToMany;
+import org.springframework.data.relational.core.mapping.ManyToOne;
+import org.springframework.data.relational.core.mapping.NamingStrategy;
+import org.springframework.data.relational.core.mapping.OneToMany;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
+import org.springframework.data.relational.core.mapping.RelationalPersistentEntity;
+import org.springframework.data.relational.core.mapping.RelationalPersistentProperty;
 import org.springframework.data.relational.repository.query.RelationalEntityMetadata;
 import org.springframework.data.relational.repository.query.RelationalParameters;
 import org.springframework.data.relational.repository.query.RelationalParameters.RelationalParameter;
@@ -53,6 +60,9 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 	private static final String ENTITY_NAME = "entityName";
 	private static final String ENTITY_NAME_VARIABLE = "#" + ENTITY_NAME;
 
+	private static final String _ENTITY = "_entity";
+	private static final String _ENTITY_VARIABLE = "#" + _ENTITY;
+
 	private static final String SYNTHETIC_PARAMETER_TEMPLATE = "__$synthetic$__%d";
 
 	private static final Pattern POSITION_BINDING_PATTERN = Pattern.compile("[?](\\d+)");
@@ -65,6 +75,8 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 	private final JdbcQueryExecution<?> executor;
 	private final JdbcConverter converter;
 	private BeanFactory beanFactory;
+
+	private final NamingStrategy namingStrategy;
 
 	private SpelExpressionParser parser = new SpelExpressionParser();
 
@@ -106,6 +118,7 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 		this.queryMethod = queryMethod;
 		this.converter = converter;
 		this.evaluationContextProvider = QueryMethodEvaluationContextProvider.DEFAULT;
+		this.namingStrategy = ((RelationalMappingContext) this.converter.getMappingContext()).getNamingStrategy();
 
 		RowMapper<Object> rowMapper = determineRowMapper(defaultRowMapper);
 		executor = getQueryExecution( //
@@ -124,6 +137,7 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 		this.queryMethod = queryMethod;
 		this.converter = converter;
 		this.evaluationContextProvider = evaluationContextProvider;
+		this.namingStrategy = ((RelationalMappingContext) this.converter.getMappingContext()).getNamingStrategy();
 
 		RowMapper<Object> rowMapper = determineRowMapper(defaultRowMapper);
 		executor = getQueryExecution( //
@@ -150,6 +164,39 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 		MapSqlParameterSource sqlParameterSource = this.bindParameters(objects);
 
 		EvaluationContext evaluationContext = evaluationContextProvider.getEvaluationContext(parameters, objects);
+
+		if (query.contains(_ENTITY_VARIABLE)) {
+			RelationalEntityMetadata<?> metadata = queryMethod.getEntityInformation();
+
+			RelationalPersistentEntity<?> entity = metadata.getTableEntity();
+
+			StringBuilder sb = new StringBuilder();
+			Iterator<RelationalPersistentProperty> iterator = entity.iterator();
+
+			while (iterator.hasNext()) {
+				RelationalPersistentProperty persistentProperty = iterator.next();
+
+				if (persistentProperty.isEntity() || persistentProperty.isAnnotationPresent(ManyToOne.class)
+						|| persistentProperty.isAnnotationPresent(OneToMany.class)
+						|| persistentProperty.isAnnotationPresent(ManyToMany.class)) {
+					continue;
+				}
+
+				String property = persistentProperty.getName();
+
+				sb.append(" ");
+				sb.append(namingStrategy.getColumnName(property));
+				sb.append(",");
+			}
+
+			String c = sb.toString();
+
+			if (c.endsWith(",")) {
+				c = c.substring(0, c.length() - 1);
+			}
+
+			evaluationContext.setVariable(_ENTITY, c.trim());
+		}
 
 		if (query.contains(ENTITY_NAME_VARIABLE)) {
 			RelationalEntityMetadata<?> metadata = queryMethod.getEntityInformation();

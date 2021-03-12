@@ -99,42 +99,59 @@ public interface UserDao extends PagingAndSortingRepository<User, Long> {
 
 	public Page<User> findByDepartmentNameLikeOrderByDepartmentName(String name, Pageable pageable);
 
+	public Page<User> findByDepartmentNameLikeOrderByUsernameAscDepartmentNameAsc(String name, Pageable pageable);
+
 	public Page<User> findByRolesNameLike(String name, Pageable pageable);
 
 	public Page<User> findByUsernameLike(String username, Pageable pageable);
 
 	public Slice<User> searchByUsernameLike(String username, Pageable pageable);
 
-	// entityName的值是Repository的domain class的@Table的value
-	@Query(value = "select * from #{(#table==null || #table=='')?#entityName:#table} t where 1 = 1 #{#username != null?'and username like :username':''}")
+	/**
+	 * #{#_entity}会被转换成Repository的domain class的所有column
+	 * 
+	 * @param username
+	 * @return
+	 */
+	@Query(value = "select #{#_entity} from #{#entityName} t where 1 = 1 and username like :#{#username}")
+	public List<User> readByUsername(String username);
+
+	/**
+	 * #{#entityName}会被转换成Repository的domain class的@Table的value
+	 * 
+	 * @param table
+	 * @param username
+	 * @return
+	 */
+	@Query(value = "select #{#_entity} from #{(#table==null || #table=='')?#entityName:#table} t where 1 = 1 #{#username != null?'and username like :username':''}")
 	public List<User> queryByUsername(String table, String username);
 
-	@Query(value = "select * from #{#entityName} t where 1 = 1 #{#username != null?'and username like :username':''}")
+	@Query(value = "select #{#_entity} from #{#entityName} t where 1 = 1 #{#username != null?'and username like :username':''}")
 	public List<User> queryByUsername(String username);
 
-	@Query(value = "select * from #{#params['table']} t where 1 = 1 #{#params['username'] != null?'and username like :#{#params['username']}':''}")
+	@Query(value = "select #{#_entity} from #{#params['table']} t where 1 = 1 #{#params['username'] != null?'and username like :#{#params['username']}':''}")
 	public List<User> findCondition(Map<String, Object> params);
 
-	@Query(value = "select * from #{#table} t where 1 = 1 #{#params?.username != null?'and username like :#{#params.username}':''}")
+	@Query(value = "select #{#_entity} from #{#table} t where 1 = 1 #{#params?.username != null?'and username like :#{#params.username}':''}")
 	public List<User> findCondition(String table, User params);
 
-	@Query(value = "select * from #{#entityName} t where 1 = 1 #{#params?.username != null?'and username like :#{#params.username}':''}")
+	@Query(value = "select #{#_entity} from #{#entityName} t where 1 = 1 #{#params?.username != null?'and username like :#{#params.username}':''}")
 	public List<User> findCondition(User params);
 
-	@Query(value = "select * from #{#table} t where 1 = 1 and username like ?1")
+	@Query(value = "select #{#_entity} from #{#table} t where 1 = 1 and username like ?1")
 	public List<User> selectByUsername(String table, String username);
 
-	@Query(value = "select * from #{#table} t where 1 = 1 and username like :#{#username}")
+	@Query(value = "select #{#_entity} from #{#table} t where 1 = 1 and username like :#{#username}")
 	public List<User> fetchByUsername(String table, String username);
 
-	@Query(value = "select * from #{#table} t where 1 = 1 and username like :username")
+	@Query(value = "select #{#_entity} from #{#table} t where 1 = 1 and username like :username")
 	public List<User> searchByUsername(String table, String username);
 
 	// 0 is parameter index of method
-	@Query(value = "select * from #{#entityName} t where 1 = 1 #{[0]?.username != null?'and username like :#{[0].username}':''} #{[0]?.departmentId != null?'and department_id = :#{[0].departmentId}':''}")
+	@Query(value = "select #{#_entity} from #{#entityName} t where 1 = 1 #{[0]?.username != null?'and username like :#{[0].username}':''} #{[0]?.departmentId != null?'and department_id = :#{[0].departmentId}':''}")
 	public List<User> fetchCondition(User params);
 
-	@Query(value = "select * from #{#params['table']} t where 1 = 1 #{[0]['username'] != null?'and username like :#{[0]['username']}':''}")
+	@Query(value = "select #{#_entity} from #{#params['table']} t where 1 = 1 #{[0]['username'] != null?'and username like :#{[0]['username']}':''}")
 	public List<User> fetchCondition(Map<String, Object> params);
 
 	@Query(value = "select count(1) from #{#params['table']} t where 1 = 1 #{[0]['username'] != null?'and username like :#{[0]['username']}':''}")
