@@ -108,12 +108,25 @@ public interface UserDao extends PagingAndSortingRepository<User, Long> {
 	public Slice<User> searchByUsernameLike(String username, Pageable pageable);
 
 	/**
-	 * #{#_entity}会被转换成Repository的domain class的所有column
+	 * 1.优先解析SQL中的<b style="color:
+	 * red;">带冒号SpEL表达式</b>，例如:#{#username}，将其替换为特定参数名称，例如":__$synthetic$__0"<br />
+	 * 2.然后再对整条SQL的其他SpEL进行解析，SpEL支持三目运算符<br />
+	 * <br />
+	 * #{#_entity}会被转换成Repository的domain class的所有column<br />
+	 * #{#entityName}会被转换成Repository的domain class的@Table的value<br />
+	 * <br />
+	 * 进行SpEL解析后的SQL是<br />
+	 * select id, username, password, department_id from "t_sys_user" t where 1 = 1
+	 * and username like :__$synthetic$__0<br />
+	 * <br />
+	 * 最终的SQL是<br />
+	 * select id, username, password, department_id from "t_sys_user" t where 1 = 1
+	 * and username like ?
 	 * 
 	 * @param username
 	 * @return
 	 */
-	@Query(value = "select #{#_entity} from #{#entityName} t where 1 = 1 and username like :#{#username}")
+	@Query(value = "select #{#_entity} from #{#entityName} t where 1 = 1 and t.username like :#{#username}")
 	public List<User> readByUsername(String username);
 
 	/**

@@ -18,6 +18,7 @@ import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.annotation.AnnotatedElementUtils;
+import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -185,8 +186,22 @@ public class JdbcAggregatePlusTemplate extends JdbcAggregateTemplate
 	}
 
 	public <T> T findOne(Query query, Class<T> entityClass) {
-		Iterator<T> iterator = doFind(query.limit(1), entityClass, getTableName(entityClass), entityClass).iterator();
-		return iterator.hasNext() ? iterator.next() : null;
+		Iterable<T> items = doFind(query.limit(2), entityClass, getTableName(entityClass), entityClass);
+
+		List<T> list = StreamSupport.stream(items.spliterator(), false).collect(Collectors.toList());
+
+		if (CollectionUtils.isEmpty(list)) {
+			return null;
+		}
+
+		int expectedSize = 1;
+		int actualSize = list.size();
+
+		if (actualSize > expectedSize) {
+			throw new IncorrectResultSizeDataAccessException(expectedSize, actualSize);
+		}
+
+		return list.get(0);
 	}
 
 	public <T> Page<T> findPage(Query query, Class<T> entityClass) {
