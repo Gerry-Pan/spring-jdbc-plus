@@ -16,7 +16,7 @@ import org.springframework.data.annotation.Transient;
  *
  */
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ ElementType.FIELD, ElementType.METHOD })
+@Target({ ElementType.FIELD })
 @Documented
 @Inherited
 @Transient
