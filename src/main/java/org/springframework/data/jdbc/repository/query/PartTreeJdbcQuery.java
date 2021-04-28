@@ -105,12 +105,28 @@ public class PartTreeJdbcQuery extends AbstractJdbcQuery {
 
 			return new PageImpl<>((List<?>) result, accessor.getPageable(), total);
 		} else {
-			ParametrizedQuery query = createQuery(accessor);
-			return this.execution.execute(query.getQuery(), query.getParameterSource());
+			if (tree.isCountProjection()) {
+				ParametrizedQuery query = createTotalQuery(accessor);
+				return this.execution.execute(query.getQuery(), query.getParameterSource());
+			} else if (tree.isExistsProjection()) {
+				ParametrizedQuery query = createQuery(accessor);
+				return this.execution.execute(query.getQuery(), query.getParameterSource());
+			} else {
+				ParametrizedQuery query = createPlusQuery(accessor);
+				return this.execution.execute(query.getQuery(), query.getParameterSource());
+			}
 		}
 	}
 
 	protected ParametrizedQuery createQuery(RelationalParametersParameterAccessor accessor) {
+
+		RelationalEntityMetadata<?> entityMetadata = getQueryMethod().getEntityInformation();
+		JdbcQueryCreator queryCreator = new JdbcQueryCreator(context, tree, converter, dialect, entityMetadata,
+				accessor);
+		return queryCreator.createQuery(getDynamicSort(accessor));
+	}
+
+	protected ParametrizedQuery createPlusQuery(RelationalParametersParameterAccessor accessor) {
 
 		RelationalEntityMetadata<?> entityMetadata = getQueryMethod().getEntityInformation();
 		JdbcPlusQueryCreator queryCreator = new JdbcPlusQueryCreator(context, tree, converter, dialect, entityMetadata,
