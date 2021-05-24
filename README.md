@@ -87,6 +87,8 @@ public interface UserDao extends PagingAndSortingRepository<User, Long> {
 
 	public Long countByUsernameLike(String username);
 
+	public Boolean existsByDepartmentNameLike(String name);
+
 	public List<User> findByUsernameLike(String username);
 
 	public List<User> findByDepartmentNameLike(String name);
@@ -275,6 +277,61 @@ public class JdbcTest {
 			User user = new User().setUsername("%a%");
 			List<User> rows = userDao.findCondition(user);
 			rows.forEach(row -> System.out.println(row.getUsername()));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	@Test
+	public void test5() {
+		try {
+			Integer pageSize = 10;
+			Integer pageNum = 1;
+
+			SubQuery subQuery = SubQuery.builder().table(User.class).columns(new String[] { "id" })
+					.localKey("departmentId").inverseKey("id").criteria(Criteria.where("username").like("%a%")).build();
+
+			Criteria criteria = Criteria.where("name").is("部门").and(subQuery.exists());
+			Query query = Query.query(criteria).with(PageRequest.of(pageNum - 1, pageSize));
+			List<Department> rows = jdbcEntityTemplate.findList(query, Department.class);
+
+			rows.forEach(row -> System.out.println(row.getName()));
+
+			System.out.println("end");
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	@Test
+	public void test6() {
+		try {
+			Integer pageSize = 10;
+			Integer pageNum = 1;
+
+			SubQuery subQuery = SubQuery.builder().table(User.class).columns(new String[] { "id" })
+					.localKey("departmentId").inverseKey("id").criteria(Criteria.where("username").like("%a%")).build();
+
+			Criteria criteria = Criteria.where("name").is("部门").and(subQuery.exists());
+			Query query = Query.query(criteria).with(PageRequest.of(pageNum - 1, pageSize));
+			Page<Department> pageObject = jdbcEntityTemplate.findPage(query, Department.class);
+
+			Long total = pageObject.getTotalElements();
+			List<Department> rows = pageObject.getContent();
+
+			rows.forEach(row -> System.out.println(row.getName()));
+
+			System.out.println(total);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	@Test
+	public void test6() {
+		try {
+			System.out.println(userDao.existsByDepartmentNameLike("%部门%"));
+			System.out.println("end");
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

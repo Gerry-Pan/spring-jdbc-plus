@@ -100,7 +100,7 @@ public class PartTreeJdbcQuery extends AbstractJdbcQuery {
 				return new PageImpl<>(Collections.emptyList(), accessor.getPageable(), total);
 			}
 
-			ParametrizedQuery query = createQuery(accessor);
+			ParametrizedQuery query = createPlusQuery(accessor);
 			Object result = this.execution.execute(query.getQuery(), query.getParameterSource());
 
 			return new PageImpl<>((List<?>) result, accessor.getPageable(), total);
@@ -109,7 +109,7 @@ public class PartTreeJdbcQuery extends AbstractJdbcQuery {
 				ParametrizedQuery query = createTotalQuery(accessor);
 				return this.execution.execute(query.getQuery(), query.getParameterSource());
 			} else if (tree.isExistsProjection()) {
-				ParametrizedQuery query = createQuery(accessor);
+				ParametrizedQuery query = createPlusQuery(accessor);
 				return this.execution.execute(query.getQuery(), query.getParameterSource());
 			} else {
 				ParametrizedQuery query = createPlusQuery(accessor);

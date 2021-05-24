@@ -34,6 +34,7 @@ import org.springframework.data.relational.core.query.Criteria;
 import org.springframework.data.relational.core.query.CriteriaDefinition;
 import org.springframework.data.relational.core.query.CriteriaDefinition.Combinator;
 import org.springframework.data.relational.core.query.CriteriaDefinition.Comparator;
+import org.springframework.data.relational.core.query.ExistsCriteria;
 import org.springframework.data.relational.core.query.ValueFunction;
 import org.springframework.data.relational.core.sql.Column;
 import org.springframework.data.relational.core.sql.Condition;
@@ -55,6 +56,8 @@ import org.springframework.util.Assert;
 import org.springframework.util.ReflectionUtils;
 import org.springframework.util.StringUtils;
 
+import lombok.Setter;
+
 public class UpdateMapper extends QueryMapper {
 
 	private final Class<?>[] clazzs = new Class<?>[] { Long.class, Integer.class, Double.class, Float.class, Byte.class,
@@ -66,6 +69,9 @@ public class UpdateMapper extends QueryMapper {
 	private final Dialect dialect;
 
 	private final JdbcConverter converter;
+
+	@Setter
+	private ExistsCallback existsCallback;
 
 	private final RelationalMappingContext mappingContext;
 
@@ -589,6 +595,12 @@ public class UpdateMapper extends QueryMapper {
 			@Nullable RelationalPersistentEntity<?> entity, MapSqlParameterSource sqlParameterSource,
 			AtomicInteger atomicInteger) {
 
+		if (criteria instanceof ExistsCriteria) {
+			Condition condition = resolveExistsCriteria(entity, (ExistsCriteria) criteria, sqlParameterSource,
+					atomicInteger, existsCallback);
+			return condition;
+		}
+
 		Field propertyField = createPropertyFieldCustom(entity, criteria.getColumn(), getMappingContext());
 		Column column = table.column(propertyField.getMappedColumnName());
 		TypeInformation<?> actualType = propertyField.getTypeHint().getRequiredActualType();
@@ -602,6 +614,9 @@ public class UpdateMapper extends QueryMapper {
 
 			mappedValue = convertValue(value, propertyField.getTypeHint());
 			typeHint = actualType.getType();
+		} else if (criteria.getValue() instanceof Expression) {
+			mappedValue = criteria.getValue();
+			typeHint = actualType.getType();
 		} else {
 
 			mappedValue = convertValue(criteria.getValue(), propertyField.getTypeHint());
@@ -610,6 +625,11 @@ public class UpdateMapper extends QueryMapper {
 
 		return createCondition(column, mappedValue, typeHint, criteria.getComparator(), criteria.isIgnoreCase(),
 				sqlParameterSource, atomicInteger);
+	}
+
+	private Condition resolveExistsCriteria(RelationalPersistentEntity<?> entity, ExistsCriteria existsCriteria,
+			MapSqlParameterSource sqlParameterSource, AtomicInteger atomicInteger, ExistsCallback existsCallback) {
+		return existsCallback.resolve(entity, existsCriteria, sqlParameterSource, atomicInteger);
 	}
 
 	private Escaper getEscaper(Comparator comparator) {
@@ -689,26 +709,44 @@ public class UpdateMapper extends QueryMapper {
 
 		switch (comparator) {
 		case EQ: {
+			if (mappedValue instanceof Expression) {
+				return Conditions.isEqual(columnExpression, (Expression) mappedValue);
+			}
 			Expression expression = bind(mappedValue, atomicInteger, sqlParameterSource, valueType, ignoreCase);
 			return Conditions.isEqual(columnExpression, expression);
 		}
 		case NEQ: {
+			if (mappedValue instanceof Expression) {
+				return Conditions.isEqual(columnExpression, (Expression) mappedValue).not();
+			}
 			Expression expression = bind(mappedValue, atomicInteger, sqlParameterSource, valueType, ignoreCase);
 			return Conditions.isEqual(columnExpression, expression).not();
 		}
 		case LT: {
+			if (mappedValue instanceof Expression) {
+				return column.isLess((Expression) mappedValue);
+			}
 			Expression expression = bind(mappedValue, atomicInteger, sqlParameterSource, valueType);
 			return column.isLess(expression);
 		}
 		case LTE: {
+			if (mappedValue instanceof Expression) {
+				return column.isLessOrEqualTo((Expression) mappedValue);
+			}
 			Expression expression = bind(mappedValue, atomicInteger, sqlParameterSource, valueType);
 			return column.isLessOrEqualTo(expression);
 		}
 		case GT: {
+			if (mappedValue instanceof Expression) {
+				return column.isGreater((Expression) mappedValue);
+			}
 			Expression expression = bind(mappedValue, atomicInteger, sqlParameterSource, valueType);
 			return column.isGreater(expression);
 		}
 		case GTE: {
+			if (mappedValue instanceof Expression) {
+				return column.isGreaterOrEqualTo((Expression) mappedValue);
+			}
 			Expression expression = bind(mappedValue, atomicInteger, sqlParameterSource, valueType);
 			return column.isGreaterOrEqualTo(expression);
 		}
