@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.springframework.data.jdbc.exception.SelectBuildException;
 import org.springframework.data.jdbc.repository.query.BoundCondition;
 import org.springframework.data.jdbc.repository.query.DefaultParametrizedQuery;
 import org.springframework.data.jdbc.repository.query.ExistsCallback;
@@ -41,6 +42,8 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.ReflectionUtils;
+import org.springframework.util.StringUtils;
 
 /**
  * 
@@ -412,15 +415,45 @@ public class DefaultStatementMapper implements StatementMapper {
 
 	private Condition resolveExistsCriteria(RelationalPersistentEntity<?> entity, ExistsCriteria existsCriteria,
 			MapSqlParameterSource sqlParameterSource, AtomicInteger atomicInteger) {
-		Class<?> subClass = existsCriteria.getTable();
+		Class<?> subClass = existsCriteria.getFrom();
 		List<SqlIdentifier> columns = existsCriteria.getColumns();
 		RelationalPersistentEntity<?> subEntity = mappingContext.getRequiredPersistentEntity(subClass);
 
 		Table table = Table.create(entity.getTableName());
 		Table subTable = Table.create(subEntity.getTableName()).as("T");
+
+		String localKey = existsCriteria.getLocalKey();
+		String inverseKey = existsCriteria.getInverseKey();
+		String relation = existsCriteria.getRelation();
+
 		Criteria criteria = (Criteria) existsCriteria.getCriteria();
-		criteria = criteria.and(existsCriteria.getLocalKey())
-				.is(new SingleLiteral(table.toString() + "." + existsCriteria.getInverseKey()));
+
+		if (criteria == null) {
+			criteria = Criteria.empty();
+		}
+
+		boolean f = Boolean.FALSE;
+		if (StringUtils.hasText(relation)) {
+			f = Boolean.TRUE;
+
+			java.lang.reflect.Field field = ReflectionUtils.findField(subClass, relation);
+
+			ManyToOne manyToOne = field.getAnnotation(ManyToOne.class);
+
+			if (manyToOne == null) {
+				throw new SelectBuildException("Not found ManyToOne in " + relation + " of " + subClass.getName());
+			}
+
+			String property = manyToOne.property();
+			String col = namingStrategy.getColumnName(property);
+			String idProperty = entity.getIdProperty().getName();
+
+			criteria = criteria.and(col).is(new SingleLiteral(table.toString() + "." + idProperty));
+		}
+
+		if (!f && StringUtils.hasText(localKey) && StringUtils.hasText(inverseKey)) {
+			criteria = criteria.and(localKey).is(new SingleLiteral(table.toString() + "." + inverseKey));
+		}
 
 		Query subQuery = Query.query(criteria).columns(columns.toArray(new SqlIdentifier[columns.size()]));
 

@@ -326,12 +326,36 @@ public class JdbcTest {
 			e.printStackTrace();
 		}
 	}
-	
+
 	@Test
-	public void test6() {
+	public void test7() {
 		try {
 			System.out.println(userDao.existsByDepartmentNameLike("%部门%"));
 			System.out.println("end");
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	@Test
+	public void test8() {
+		try {
+			Integer pageSize = 10;
+			Integer pageNum = 1;
+
+			SubQuery subQuery = SubQuery.builder().from(User.class).column("id").relation("department")
+					.criteria(Criteria.where("username").like("%a%")).build();
+
+			Criteria criteria = Criteria.where("name").is("部门").and(subQuery.exists());
+			Query query = Query.query(criteria).with(PageRequest.of(pageNum - 1, pageSize));
+			Page<Department> pageObject = jdbcEntityTemplate.findPage(query, Department.class);
+
+			Long total = pageObject.getTotalElements();
+			List<Department> rows = pageObject.getContent();
+
+			rows.forEach(row -> System.out.println(row.getName()));
+
+			System.out.println(total);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
